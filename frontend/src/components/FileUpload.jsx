@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { UploadCloud, FileText, CheckCircle2, AlertCircle, Loader2, ArrowRight } from 'lucide-react';
+import { safeFetchJson } from '../config';
 
 export default function FileUpload({ onUploadSuccess, isProcessing, activeDoc }) {
   const [dragActive, setDragActive] = useState(false);
@@ -10,7 +11,7 @@ export default function FileUpload({ onUploadSuccess, isProcessing, activeDoc })
   const handleFileSelect = async (file) => {
     if (!file) return;
 
-    if (!file.name.lowerCase?.endsWith('.pdf') && file.type !== 'application/pdf' && !file.name.endsWith('.pdf')) {
+    if (!file.name.endsWith('.pdf') && file.type !== 'application/pdf') {
       setErrorMsg('Invalid file format. Please upload a PDF medical report.');
       return;
     }
@@ -27,19 +28,12 @@ export default function FileUpload({ onUploadSuccess, isProcessing, activeDoc })
     }, 200);
 
     try {
-      const response = await fetch('/api/process', {
+      const data = await safeFetchJson('/api/process', {
         method: 'POST',
         body: formData,
       });
 
       clearInterval(progressInterval);
-
-      if (!response.ok) {
-        const errData = await response.json();
-        throw new Error(errData.detail || 'Failed to process medical report PDF');
-      }
-
-      const data = await response.json();
       setProgress(100);
 
       setTimeout(() => {

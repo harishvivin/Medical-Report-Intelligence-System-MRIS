@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Send, Sparkles, Image as ImageIcon, MapPin, CheckCircle, AlertTriangle, Eye, Loader2 } from 'lucide-react';
 import QuickQuestions from './QuickQuestions';
+import { safeFetchJson, API_BASE } from '../config';
 
 export default function QaSection({ documentId, onOpenCropModal }) {
   const [question, setQuestion] = useState('');
@@ -16,7 +17,7 @@ export default function QaSection({ documentId, onOpenCropModal }) {
     setError(null);
 
     try {
-      const response = await fetch('/api/qa/ask', {
+      const data = await safeFetchJson('/api/qa/ask', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -25,12 +26,9 @@ export default function QaSection({ documentId, onOpenCropModal }) {
         }),
       });
 
-      if (!response.ok) {
-        const errData = await response.json();
-        throw new Error(errData.detail || 'Error retrieving answer');
-      }
-
-      const data = await response.json();
+      const fullSnippetUrl = data.snippet_url
+        ? (data.snippet_url.startsWith('http') ? data.snippet_url : `${API_BASE}${data.snippet_url}`)
+        : null;
 
       setQaHistory((prev) => [
         {
@@ -39,7 +37,7 @@ export default function QaSection({ documentId, onOpenCropModal }) {
           answer: data.answer,
           pageNumber: data.page_number,
           confidence: data.confidence,
-          snippetUrl: data.snippet_url,
+          snippetUrl: fullSnippetUrl,
           boundingBox: data.bounding_box,
         },
         ...prev,

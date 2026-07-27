@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { User, Building, TestTube, Activity, AlertCircle, FileCheck, Loader2, Sparkles, Stethoscope } from 'lucide-react';
+import { safeFetchJson } from '../config';
 
 export default function SummaryView({ documentId }) {
   const [summary, setSummary] = useState(null);
@@ -13,18 +14,12 @@ export default function SummaryView({ documentId }) {
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch('/api/summary', {
+        const data = await safeFetchJson('/api/summary', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ document_id: documentId }),
         });
 
-        if (!res.ok) {
-          const errData = await res.json();
-          throw new Error(errData.detail || 'Failed to fetch medical report summary');
-        }
-
-        const data = await res.json();
         setSummary(data.summary);
       } catch (err) {
         setError(err.message);
