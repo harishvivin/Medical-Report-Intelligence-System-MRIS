@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Send, Sparkles, Image as ImageIcon, MapPin, CheckCircle, AlertTriangle, Eye, Loader2 } from 'lucide-react';
 import QuickQuestions from './QuickQuestions';
-import { safeFetchJson, API_BASE } from '../config';
+import { safeFetchJson, getApiBase } from '../config';
 
 export default function QaSection({ documentId, onOpenCropModal }) {
   const [question, setQuestion] = useState('');
@@ -27,7 +27,7 @@ export default function QaSection({ documentId, onOpenCropModal }) {
       });
 
       const fullSnippetUrl = data.snippet_url
-        ? (data.snippet_url.startsWith('http') ? data.snippet_url : `${API_BASE}${data.snippet_url}`)
+        ? (data.snippet_url.startsWith('http') ? data.snippet_url : `${getApiBase()}${data.snippet_url}`)
         : null;
 
       setQaHistory((prev) => [
