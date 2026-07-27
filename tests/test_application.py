@@ -6,6 +6,7 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent.parent
 sys.path.append(str(BASE_DIR / "backend"))
 sys.path.append(str(BASE_DIR / "backend" / "src"))
+sys.path.append(str(BASE_DIR / "tests"))
 
 from fastapi.testclient import TestClient
 from app import app
@@ -121,6 +122,22 @@ class TestMedicalReportExtractAI(unittest.TestCase):
         q = self.client.post("/api/qa/ask", json={"document_id": doc_id, "question": "What is the brain MRI radiologist opinion?"})
         self.assertEqual(q.status_code, 200)
         self.assertEqual(q.json()["answer"], "The uploaded report does not contain this information.")
+
+    def test_08_abnormal_values_query(self):
+        pdf_path = SAMPLES_DIR / "report2_renal_panel.pdf"
+        with open(pdf_path, "rb") as f:
+            resp = self.client.post("/api/process", files={"file": ("report2_renal_panel.pdf", f, "application/pdf")})
+        doc_id = resp.json()["document_id"]
+
+        # Ask "Are there any high or low abnormal values?"
+        q = self.client.post("/api/qa/ask", json={"document_id": doc_id, "question": "Are there any high or low abnormal values?"})
+        self.assertEqual(q.status_code, 200)
+        res = q.json()
+        self.assertGreaterEqual(res["confidence"], 0.95)
+        self.assertIn("1.8", res["answer"])
+        self.assertIsNotNone(res["bounding_box"])
+        self.assertIsNotNone(res["snippet_url"])
+        self.assertGreater(res["bounding_box"][2] - res["bounding_box"][0], 350)
 
 if __name__ == "__main__":
     unittest.main()

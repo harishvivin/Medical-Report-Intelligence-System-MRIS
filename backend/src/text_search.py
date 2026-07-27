@@ -30,11 +30,12 @@ class TextSearchEngine:
             sim_matrix = cosine_similarity(query_vec, self.index.tfidf_matrix)
             tfidf_scores = sim_matrix.flatten()
 
-        # 2. Hybrid Scoring per Block
+        # 2. Hybrid Scoring per Entry
         results = []
         for i, block in enumerate(self.index.blocks):
             block_text_norm = block["normalized_text"]
             base_tfidf = float(tfidf_scores[i])
+            entry_type = block.get("type", "block")
 
             # Keyword Overlap Score
             kw_match_count = 0
@@ -47,36 +48,35 @@ class TextSearchEngine:
 
             # Entity Match Bonus - ONLY apply if there is actual keyword overlap or TF-IDF relevance
             entity_bonus = 0.0
-            if target_entities and (base_tfidf > 0.08 or kw_overlap_score > 0.2):
+            if target_entities and (base_tfidf > 0.05 or kw_overlap_score > 0.2):
                 for entity in target_entities:
                     if entity in block_text_norm or any(re.search(r'\b' + re.escape(kw) + r'\b', block_text_norm) for kw in keywords):
-                        entity_bonus += 0.20
+                        entity_bonus += 0.25
+
+            # Precision Entry Type Boost (Row/Segment level gives exact bounding box crops!)
+            type_boost = 0.15 if entry_type in ["segment", "row"] else 0.0
 
             # Check for header penalty vs finding boost
             header_penalty = 0.0
             finding_boost = 0.0
 
             if any(h in block_text_norm for h in ["report", "examination", "laboratory", "evaluation", "department"]):
-                # If it's just a title line without results
                 if not any(v in block_text_norm for v in ["impression", "rhythm", "g/dl", "mg/dl", "mmhg", "bpm", "%", "normal", "high", "low"]):
                     header_penalty = 0.20
 
             if any(v in block_text_norm for v in ["impression", "sinus rhythm", "rhythm", "st segment", "g/dl", "mg/dl", "mmhg", "bpm", "hba1c", "non-reactive", "reactive", "positive", "negative"]):
                 finding_boost = 0.15
 
-            # If user provided specific keywords and NONE matched, suppress hallucinated match
-            if keywords and kw_match_count == 0 and base_tfidf < 0.15:
+            # If user provided specific keywords and NONE matched, suppress match
+            if keywords and kw_match_count == 0 and base_tfidf < 0.12:
                 composite_score = 0.0
             else:
-                # Calculate composite ranking score: 45% TF-IDF + 40% Keyword Overlap + Entity Bonus + Finding Boost - Header Penalty
-                composite_score = (0.45 * base_tfidf) + (0.40 * kw_overlap_score) + entity_bonus + finding_boost - header_penalty
+                composite_score = (0.45 * base_tfidf) + (0.40 * kw_overlap_score) + entity_bonus + type_boost + finding_boost - header_penalty
 
-            # Clip between 0.0 and 1.0
             composite_score = min(1.0, max(0.0, composite_score))
 
             if composite_score > 0.05:
                 results.append((block, composite_score))
 
-        # Sort descending by composite score
         results.sort(key=lambda x: x[1], reverse=True)
         return results[:top_k]
