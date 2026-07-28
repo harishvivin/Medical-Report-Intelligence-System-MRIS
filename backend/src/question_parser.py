@@ -25,6 +25,7 @@ MEDICAL_ENTITIES = {
     "urea": ["urea", "bun", "blood urea", "blood urea nitrogen"],
     "liver": ["sgot", "sgpt", "ast", "alt", "bilirubin", "total bilirubin", "direct bilirubin", "indirect bilirubin", "alkaline phosphatase", "alp", "ggt"],
     "urine": ["urine", "urine colour", "urine ph", "protein", "sugar", "specific gravity", "pus cells", "epithelial cells", "rcbs in urine"],
+    "cotinine": ["cotinine", "nicotine", "tobacco screening"],
     "application": ["application number", "app no", "app number", "mer number", "mer no", "hsp code", "service type"]
 }
 

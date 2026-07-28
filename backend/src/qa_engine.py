@@ -401,18 +401,23 @@ class QAEngine:
 
         # 6. Targeted Lab & Diagnostic Results
         kw_map = {
-            "hemoglobin": ["hemoglobin", "haemoglobin", "hgb", "hb"],
+            "hba1c": ["hba1c", "glycated hemoglobin", "glycated haemoglobin", "haemoglobin a1c", "hemoglobin a1c"],
+            "hemoglobin": ["hemoglobin", "haemoglobin", "hgb"],
             "creatinine": ["creatinine", "serum creatinine"],
-            "hba1c": ["hba1c", "glycated hemoglobin"],
-            "blood pressure": ["blood pressure", "bp"],
-            "hiv": ["hiv", "hiv 1", "hiv 2", "serology"],
+            "blood pressure": ["blood pressure", "bp", "systolic", "diastolic"],
+            "hiv": ["hiv", "hiv 1", "hiv 2", "human immunodeficiency virus"],
+            "hbsag": ["hbsag", "hepatitis", "hepatitis b"],
             "ecg": ["ecg", "ekg", "rhythm", "electrocardiogram", "cardiology", "sinus rhythm"],
             "wbc": ["wbc", "white blood cell", "leukocyte", "total leukocyte"],
             "platelets": ["platelet", "plt", "platelet count"],
-            "glucose": ["glucose", "fasting blood glucose", "fbs", "sugar"],
+            "glucose": ["glucose", "fasting blood glucose", "fbs", "sugar", "random blood sugar"],
             "tsh": ["tsh", "thyroid"],
             "cholesterol": ["cholesterol", "triglycerides", "hdl", "ldl"],
-            "bilirubin": ["bilirubin", "sgot", "sgpt", "alt", "ast", "alp"]
+            "bilirubin": ["bilirubin", "sgot", "sgpt", "alt", "ast", "alp"],
+            "cotinine": ["cotinine", "nicotine", "tobacco"],
+            "urine": ["urine", "pus cells", "epithelial cells", "red blood cells in urine"],
+            "vitals": ["height", "weight", "pulse", "girth", "abdomen"],
+            "metadata": ["application number", "app no", "mer number", "mer no", "hsp code", "service type"]
         }
 
         for test_key, synonyms in kw_map.items():
