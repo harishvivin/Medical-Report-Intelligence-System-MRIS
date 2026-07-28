@@ -107,14 +107,21 @@ class QAEngine:
         parsed_q = QuestionParser.parse(question)
         logger.info(f"Parsed question intent: {parsed_q['intent']}, target entities: {parsed_q['target_entities']}")
 
-        # Primary Engine: Google Gemini API
+        # Primary Engine: Google Gemini API (Multimodal Text & Vision)
         if self.gemini_client.is_available():
             try:
-                # Retrieve top candidate PAGES (NOT individual blocks)
+                # Retrieve top candidate PAGES
                 candidate_pages = self.search_engine.search_pages(parsed_q, top_k=5)
-                pages_context = self._get_complete_page_context(candidate_pages)
+                
+                # Fallback for scanned/image PDFs with zero extracted text blocks: check first 5 pages
+                if not candidate_pages:
+                    all_p = sorted(list(set(b["page_number"] for b in self.index.blocks))) if self.index.blocks else [1]
+                    candidate_pages = all_p[:5]
 
-                gemini_res = self.gemini_client.extract_answer(question, pages_context)
+                pages_context = self._get_complete_page_context(candidate_pages)
+                page_images = self._get_page_images(candidate_pages)
+
+                gemini_res = self.gemini_client.extract_answer(question, pages_context, page_images=page_images)
                 if gemini_res:
                     if not gemini_res.get("found") or "does not contain this information" in gemini_res.get("answer", "").lower():
                         logger.info("Gemini API determined query info is NOT present in report.")
@@ -196,7 +203,22 @@ class QAEngine:
             "bounding_box": top_block.get("parent_row_bbox", top_block["bounding_box"])
         }
 
-        return self._build_response(question, matched_data)
+    def _get_page_images(self, candidate_pages: List[int], dpi: int = 150) -> Dict[int, bytes]:
+        """Renders candidate pages to PNG image bytes for Gemini multimodal vision analysis."""
+        images = {}
+        if not self.pdf_path or not os.path.exists(self.pdf_path):
+            return images
+        try:
+            doc = fitz.open(self.pdf_path)
+            for p_num in candidate_pages:
+                idx = p_num - 1
+                if 0 <= idx < len(doc):
+                    pix = doc[idx].get_pixmap(dpi=dpi, alpha=False)
+                    images[p_num] = pix.tobytes("png")
+            doc.close()
+        except Exception as e:
+            logger.warning(f"Error rendering page images for QAEngine: {e}")
+        return images
 
     def _find_bbox_for_matched_line(
         self, matched_line: Optional[str], target_page: Optional[int], answer_text: Optional[str] = None
@@ -283,6 +305,7 @@ class QAEngine:
             t_blocks = [b for b in self.index.blocks if b["page_number"] == target_page]
             if t_blocks:
                 return t_blocks[0]["page_number"], t_blocks[0]["page_index"], t_blocks[0].get("parent_row_bbox") or t_blocks[0]["bounding_box"]
+            return target_page, target_page - 1, [30.0, 30.0, 565.0, 810.0]
 
         first_b = self.index.blocks[0] if self.index.blocks else None
         if first_b:
@@ -404,6 +427,7 @@ class QAEngine:
             "hba1c": ["hba1c", "glycated hemoglobin", "glycated haemoglobin", "haemoglobin a1c", "hemoglobin a1c"],
             "hemoglobin": ["hemoglobin", "haemoglobin", "hgb"],
             "creatinine": ["creatinine", "serum creatinine"],
+            "urea": ["urea", "bun", "blood urea", "blood urea nitrogen"],
             "blood pressure": ["blood pressure", "bp", "systolic", "diastolic"],
             "hiv": ["hiv", "hiv 1", "hiv 2", "human immunodeficiency virus"],
             "hbsag": ["hbsag", "hepatitis", "hepatitis b"],

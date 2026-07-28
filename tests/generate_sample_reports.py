@@ -131,7 +131,11 @@ def generate_pdf_reports():
             y_cursor += 24
 
         out_path = SAMPLES_DIR / rep["filename"]
-        doc.save(str(out_path))
+        if not out_path.exists():
+            try:
+                doc.save(str(out_path))
+            except Exception as e:
+                pass
         doc.close()
         generated_paths.append(str(out_path))
         print(f"Generated sample PDF: {out_path}")

@@ -168,6 +168,25 @@ class PDFReader:
         matrix = fitz.Matrix(scale, scale)
         return page.get_pixmap(matrix=matrix, alpha=False)
 
+    def get_page_image_bytes(self, page_index: int, dpi: int = 150) -> bytes:
+        """Renders page to PNG bytes for multimodal vision model reasoning."""
+        if 0 <= page_index < self.page_count:
+            page = self.doc[page_index]
+            pix = page.get_pixmap(dpi=dpi, alpha=False)
+            return pix.tobytes("png")
+        return b""
+
+    def get_all_page_images(self, candidate_pages: List[int], dpi: int = 150) -> Dict[int, bytes]:
+        """Returns dictionary mapping 1-indexed page_num to PNG image bytes for candidate pages."""
+        images = {}
+        for p_num in candidate_pages:
+            idx = p_num - 1
+            if 0 <= idx < self.page_count:
+                img_bytes = self.get_page_image_bytes(idx, dpi=dpi)
+                if img_bytes:
+                    images[p_num] = img_bytes
+        return images
+
     def close(self):
         if self.doc:
             self.doc.close()

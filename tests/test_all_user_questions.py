@@ -115,7 +115,7 @@ class TestAllUserQuestions(unittest.TestCase):
         mock_client.is_available.return_value = True
         
         # Mock responses for Gemini based on query
-        def mock_extract(q, context):
+        def mock_extract(q, context, page_images=None):
             if "name" in q.lower():
                 return {
                     "found": True,

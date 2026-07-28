@@ -48,17 +48,11 @@ class GeminiClient:
     def is_available(self) -> bool:
         return bool(self.api_key and (self.client or self.legacy_model))
 
-    def extract_answer(self, question: str, pages_context: Any) -> Optional[Dict[str, Any]]:
+    def extract_answer(
+        self, question: str, pages_context: Any, page_images: Optional[Dict[int, bytes]] = None
+    ) -> Optional[Dict[str, Any]]:
         """
-        Sends complete page text context + user question to Gemini API.
-        Returns structured JSON dict:
-        {
-          "found": bool,
-          "answer": str,
-          "matched_line": str,
-          "page": int,
-          "confidence": float
-        }
+        Uses Gemini API (Multimodal Text & Vision) to analyze document content and extract exact answer.
         """
         if not self.is_available() or not pages_context:
             return None
@@ -85,24 +79,24 @@ class GeminiClient:
 
         system_prompt = (
             "You are an expert medical document intelligence system.\n"
-            "Analyze the provided COMPLETE PAGE TEXTS and answer the user's question accurately.\n\n"
+            "Analyze the provided COMPLETE PAGE TEXTS AND/OR PAGE IMAGES and answer the user's question accurately.\n\n"
             "STRICT RULES:\n"
-            "1. Base your answer strictly on the supplied page text. Do NOT invent or hallucinate data.\n"
+            "1. Base your answer strictly on the supplied page text or images (including tables, handwritten doctor notes, and ECG strips). Do NOT invent or hallucinate data.\n"
             "2. Understand all medical lab test categories (Basic Info, CBC, Kidney Function, Diabetes, Liver Function, Lipid Profile, Serology/Infectious Disease, Urine Analysis, ECG, Summaries).\n"
             "3. If the user asks about specific test values, metadata (e.g. Patient Name, Age, Gender, Hospital, Application Number, MER Number, HSP Code, Service Type), or diagnostic findings:\n"
             "   - 'found': true\n"
             "   - 'answer': Concise and clear answer string with value, units, or clinical status.\n"
-            "   - 'matched_line': Extract the EXACT complete row/line from the page text containing the target answer (e.g. 'Hemoglobin : 13.8 g/dL (Reference Range: 13.5 - 17.5 g/dL)'). "
-            "This 'matched_line' MUST be copied EXACTLY character-for-character from the supplied PDF text. Never paraphrase, never shorten, and never modify punctuation.\n"
+            "   - 'matched_line': Extract the EXACT complete row/line containing the target answer (e.g. 'Hemoglobin : 13.8 g/dL (Reference Range: 13.5 - 17.5 g/dL)'). "
+            "Never paraphrase, never shorten, and never modify punctuation.\n"
             "   - 'page': Integer page number where the line was found.\n"
             "   - 'confidence': Float confidence score between 0.0 and 1.0 (e.g. 0.99).\n"
             "4. If the user asks for a general summary, abnormal values overview, or report interpretation:\n"
             "   - 'found': true\n"
             "   - 'answer': Detailed, comprehensive overview listing patient status, key findings, and abnormal parameters.\n"
-            "   - 'matched_line': Exact representative row from the text.\n"
+            "   - 'matched_line': Exact representative row from the text or image.\n"
             "   - 'page': Integer page number.\n"
             "   - 'confidence': 0.99\n"
-            "5. If the requested parameter or test is NOT present anywhere in the supplied text, return:\n"
+            "5. If the requested parameter or test is NOT present anywhere in the supplied text or images, return:\n"
             "   'found': false,\n"
             "   'answer': 'The uploaded report does not contain this information.',\n"
             "   'matched_line': null,\n"
@@ -120,7 +114,7 @@ class GeminiClient:
 
         user_content = f"COMPLETE PAGE TEXTS:\n{full_context_str}\n\nUSER QUESTION: {question}"
 
-        raw_response = self._generate_text(system_prompt, user_content)
+        raw_response = self._generate_text(system_prompt, user_content, page_images=page_images)
         if not raw_response:
             return None
 
@@ -190,15 +184,27 @@ class GeminiClient:
 
         return None
 
-    def _generate_text(self, system_prompt: str, user_prompt: str) -> Optional[str]:
-        # 1. Try official SDK
+    def _generate_text(
+        self, system_prompt: str, user_prompt: str, page_images: Optional[Dict[int, bytes]] = None
+    ) -> Optional[str]:
+        # 1. Try official SDK (Multimodal Text & Vision)
         if self.client:
             try:
                 for model_id in ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro"]:
                     try:
+                        contents = [system_prompt]
+                        if page_images:
+                            for p_num, img_bytes in page_images.items():
+                                try:
+                                    contents.append(types.Part.from_bytes(data=img_bytes, mime_type="image/png"))
+                                    contents.append(f"=== PAGE {p_num} IMAGE RENDER ===")
+                                except Exception as img_err:
+                                    logger.debug(f"Error attaching page {p_num} image bytes: {img_err}")
+                        contents.append(user_prompt)
+
                         res = self.client.models.generate_content(
                             model=model_id,
-                            contents=f"{system_prompt}\n\n{user_prompt}",
+                            contents=contents,
                             config=types.GenerateContentConfig(
                                 response_mime_type="application/json",
                                 temperature=0.0
@@ -214,8 +220,13 @@ class GeminiClient:
         # 2. Try legacy SDK
         if self.legacy_model:
             try:
+                contents = [f"{system_prompt}\n\n{user_prompt}"]
+                if page_images:
+                    for p_num, img_bytes in page_images.items():
+                        contents.append({"mime_type": "image/png", "data": img_bytes})
+
                 res = self.legacy_model.generate_content(
-                    f"{system_prompt}\n\n{user_prompt}",
+                    contents,
                     generation_config={"temperature": 0.0, "response_mime_type": "application/json"}
                 )
                 if res and res.text:
