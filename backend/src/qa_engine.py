@@ -130,8 +130,8 @@ class QAEngine:
                     matched_line = gemini_res.get("matched_line") or gemini_res.get("matched_text")
                     page_num = gemini_res.get("page")
 
-                    # Map Gemini matched_line back to physical PyMuPDF parent_row_bbox
-                    target_page, page_idx, bbox = self._find_bbox_for_matched_line(matched_line, page_num)
+                    # Map Gemini matched_line or answer back to physical PyMuPDF parent_row_bbox
+                    target_page, page_idx, bbox = self._find_bbox_for_matched_line(matched_line, page_num, gemini_res.get("answer"))
 
                     matched_data = {
                         "answer": gemini_res["answer"],
@@ -199,14 +199,15 @@ class QAEngine:
         return self._build_response(question, matched_data)
 
     def _find_bbox_for_matched_line(
-        self, matched_line: Optional[str], target_page: Optional[int]
+        self, matched_line: Optional[str], target_page: Optional[int], answer_text: Optional[str] = None
     ) -> Tuple[Optional[int], Optional[int], Optional[List[float]]]:
-        """Locates the exact PyMuPDF parent_row_bbox corresponding to Gemini's matched_line."""
-        if not matched_line:
+        """Locates the exact PyMuPDF parent_row_bbox corresponding to Gemini's matched_line or answer_text."""
+        query_text = (matched_line or "").strip() or (answer_text or "").strip()
+        if not query_text:
             first_b = self.index.blocks[0] if self.index.blocks else None
             return (first_b["page_number"], first_b["page_index"], first_b.get("parent_row_bbox") or first_b["bounding_box"]) if first_b else (1, 0, None)
 
-        clean_line = matched_line.strip()
+        clean_line = query_text
         norm_line = clean_line.lower()
         norm_line_spaces = re.sub(r'\s+', ' ', norm_line)
         norm_colon = re.sub(r'\s*:\s*', ' : ', norm_line_spaces)

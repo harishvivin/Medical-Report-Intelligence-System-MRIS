@@ -8,7 +8,7 @@ MEDICAL_ENTITIES = {
     "hba1c": ["hba1c", "glycated hemoglobin", "hb a1c", "a1c"],
     "blood pressure": ["blood pressure", "bp", "systolic", "diastolic"],
     "hiv": ["hiv", "hiv 1", "hiv 2", "human immunodeficiency virus", "serology", "elisa", "hbsag", "hepatitis"],
-    "ecg": ["ecg", "ekg", "electrocardiogram", "heart rate", "rhythm", "sinus rhythm"],
+    "ecg": ["ecg", "ekg", "electrocardiogram", "heart rate", "rhythm", "sinus rhythm", "cardiology", "cardiac", "pulse", "bpm", "st segment", "ejection fraction", "holter", "arrhythmia"],
     "patient_name": ["patient name", "patient", "name", "proposer name", "client name", "pt name"],
     "hospital_name": ["hospital name", "hospital", "clinic", "laboratory", "lab", "center", "institute", "diagnostic"],
     "doctor": ["doctor", "dr", "referred by", "ref by", "physician"],
