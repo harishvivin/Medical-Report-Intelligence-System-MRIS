@@ -69,57 +69,57 @@ export default function SummaryView({ documentId }) {
       {/* Top Banner: Patient Info & Hospital Header */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Patient Card */}
-        <div className="glass-panel p-5 rounded-2xl border border-slate-800 relative overflow-hidden">
+        <div className="glass-panel p-5 rounded-2xl border border-slate-200 dark:border-slate-800 relative overflow-hidden">
           <div className="flex items-center gap-3 mb-4">
-            <div className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+            <div className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
               <User className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400">Patient Details</h3>
-              <p className="text-base font-bold text-slate-100">{patient_info.name}</p>
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Patient Details</h3>
+              <p className="text-base font-bold text-slate-900 dark:text-slate-100">{patient_info.name}</p>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3 text-xs">
-            <div className="bg-slate-950/50 p-2.5 rounded-lg border border-slate-800">
-              <span className="text-slate-500 block text-[10px]">Age & Gender</span>
-              <span className="text-slate-200 font-medium">{patient_info.age} • {patient_info.gender}</span>
+            <div className="glass-card p-2.5 rounded-lg border border-slate-200 dark:border-slate-800">
+              <span className="text-slate-500 dark:text-slate-400 block text-[10px]">Age & Gender</span>
+              <span className="text-slate-800 dark:text-slate-200 font-medium">{patient_info.age} • {patient_info.gender}</span>
             </div>
-            <div className="bg-slate-950/50 p-2.5 rounded-lg border border-slate-800">
-              <span className="text-slate-500 block text-[10px]">Report Date</span>
-              <span className="text-slate-200 font-medium">{patient_info.date}</span>
+            <div className="glass-card p-2.5 rounded-lg border border-slate-200 dark:border-slate-800">
+              <span className="text-slate-500 dark:text-slate-400 block text-[10px]">Report Date</span>
+              <span className="text-slate-800 dark:text-slate-200 font-medium">{patient_info.date}</span>
             </div>
           </div>
         </div>
 
         {/* Hospital Card */}
-        <div className="glass-panel p-5 rounded-2xl border border-slate-800 relative overflow-hidden">
+        <div className="glass-panel p-5 rounded-2xl border border-slate-200 dark:border-slate-800 relative overflow-hidden">
           <div className="flex items-center gap-3 mb-4">
-            <div className="p-2.5 rounded-xl bg-teal-500/10 text-teal-400 border border-teal-500/20">
+            <div className="p-2.5 rounded-xl bg-teal-500/10 text-teal-600 dark:text-teal-400 border border-teal-500/20">
               <Building className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400">Hospital / Facility</h3>
-              <p className="text-base font-bold text-slate-100">{hospital}</p>
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Hospital / Facility</h3>
+              <p className="text-base font-bold text-slate-900 dark:text-slate-100">{hospital}</p>
             </div>
           </div>
-          <div className="bg-slate-950/50 p-2.5 rounded-lg border border-slate-800 text-xs">
-            <span className="text-slate-500 block text-[10px]">Referred By Doctor</span>
-            <span className="text-slate-200 font-medium">{patient_info.ref_doctor}</span>
+          <div className="glass-card p-2.5 rounded-lg border border-slate-200 dark:border-slate-800 text-xs">
+            <span className="text-slate-500 dark:text-slate-400 block text-[10px]">Referred By Doctor</span>
+            <span className="text-slate-800 dark:text-slate-200 font-medium">{patient_info.ref_doctor}</span>
           </div>
         </div>
       </div>
 
       {/* Tests Performed Tags */}
-      <div className="glass-panel p-5 rounded-2xl border border-slate-800">
+      <div className="glass-panel p-5 rounded-2xl border border-slate-200 dark:border-slate-800">
         <div className="flex items-center gap-2 mb-3">
-          <TestTube className="w-4 h-4 text-emerald-400" />
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-300">Tests Performed</h3>
+          <TestTube className="w-4 h-4 text-emerald-500 dark:text-emerald-400" />
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300">Tests Performed</h3>
         </div>
         <div className="flex flex-wrap gap-2">
           {tests_performed.map((t, idx) => (
             <span
               key={idx}
-              className="px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-xs font-medium text-emerald-300"
+              className="px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-xs font-medium text-emerald-700 dark:text-emerald-300"
             >
               {t}
             </span>
@@ -131,18 +131,18 @@ export default function SummaryView({ documentId }) {
       {abnormal_values && abnormal_values.length > 0 && (
         <div className="glass-panel p-5 rounded-2xl border border-amber-500/30 bg-amber-500/5">
           <div className="flex items-center gap-2 mb-3">
-            <AlertCircle className="w-4 h-4 text-amber-400" />
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-amber-400">
+            <AlertCircle className="w-4 h-4 text-amber-500 dark:text-amber-400" />
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-400">
               Flagged Abnormal Values ({abnormal_values.length})
             </h3>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {abnormal_values.map((item, idx) => (
-              <div key={idx} className="p-3 rounded-xl bg-slate-950/80 border border-amber-500/30 text-xs">
-                <p className="font-semibold text-slate-200">{item.parameter}</p>
+              <div key={idx} className="p-3 rounded-xl glass-card border border-amber-500/30 text-xs">
+                <p className="font-semibold text-slate-900 dark:text-slate-200">{item.parameter}</p>
                 <div className="flex items-center justify-between mt-1.5">
-                  <span className="text-amber-400 font-bold">{item.value}</span>
-                  <span className="px-1.5 py-0.5 rounded bg-amber-500/20 text-[10px] text-amber-300 font-semibold">
+                  <span className="text-amber-600 dark:text-amber-400 font-bold">{item.value}</span>
+                  <span className="px-1.5 py-0.5 rounded bg-amber-500/20 text-[10px] text-amber-700 dark:text-amber-300 font-semibold">
                     {item.status}
                   </span>
                 </div>
@@ -154,10 +154,10 @@ export default function SummaryView({ documentId }) {
       )}
 
       {/* Detailed Findings Table */}
-      <div className="glass-panel p-5 rounded-2xl border border-slate-800">
+      <div className="glass-panel p-5 rounded-2xl border border-slate-200 dark:border-slate-800">
         <div className="flex items-center gap-2 mb-4">
-          <Activity className="w-4 h-4 text-emerald-400" />
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-300">
+          <Activity className="w-4 h-4 text-emerald-500 dark:text-emerald-400" />
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300">
             Important Lab Findings ({important_findings.length})
           </h3>
         </div>
@@ -165,19 +165,19 @@ export default function SummaryView({ documentId }) {
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs border-collapse">
             <thead>
-              <tr className="border-b border-slate-800 text-slate-400 font-semibold uppercase text-[10px]">
+              <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 font-semibold uppercase text-[10px]">
                 <th className="py-2.5 px-3">Parameter / Test</th>
                 <th className="py-2.5 px-3">Result Value</th>
                 <th className="py-2.5 px-3">Reference Range</th>
                 <th className="py-2.5 px-3 text-right">Status</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/60 text-slate-200">
+            <tbody className="divide-y divide-slate-200 dark:divide-slate-800/60 text-slate-800 dark:text-slate-200">
               {important_findings.map((f, idx) => (
-                <tr key={idx} className="hover:bg-slate-900/50 transition">
+                <tr key={idx} className="hover:bg-slate-100/50 dark:hover:bg-slate-900/50 transition">
                   <td className="py-2.5 px-3 font-medium">{f.parameter}</td>
-                  <td className="py-2.5 px-3 font-semibold text-emerald-400">{f.value}</td>
-                  <td className="py-2.5 px-3 text-slate-400">{f.reference_range}</td>
+                  <td className="py-2.5 px-3 font-semibold text-emerald-600 dark:text-emerald-400">{f.value}</td>
+                  <td className="py-2.5 px-3 text-slate-500 dark:text-slate-400">{f.reference_range}</td>
                   <td className="py-2.5 px-3 text-right">
                     <span
                       className={`px-2 py-0.5 rounded text-[10px] font-semibold ${
