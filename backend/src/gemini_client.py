@@ -96,7 +96,13 @@ class GeminiClient:
             "This 'matched_line' MUST be copied EXACTLY character-for-character from the supplied PDF text. Never paraphrase, never shorten, and never modify punctuation.\n"
             "   - 'page': Integer page number where the line was found.\n"
             "   - 'confidence': Float confidence score between 0.0 and 1.0 (e.g. 0.99).\n"
-            "4. If the requested parameter or test is NOT present anywhere in the supplied text, return:\n"
+            "4. If the user asks for a general summary, abnormal values overview, or report interpretation:\n"
+            "   - 'found': true\n"
+            "   - 'answer': Detailed, comprehensive overview listing patient status, key findings, and abnormal parameters.\n"
+            "   - 'matched_line': Exact representative row from the text.\n"
+            "   - 'page': Integer page number.\n"
+            "   - 'confidence': 0.99\n"
+            "5. If the requested parameter or test is NOT present anywhere in the supplied text, return:\n"
             "   'found': false,\n"
             "   'answer': 'The uploaded report does not contain this information.',\n"
             "   'matched_line': null,\n"
@@ -146,7 +152,7 @@ class GeminiClient:
             return None
 
         system_prompt = (
-            "You are an expert medical report summarization system.\n"
+            "You are a clinical data extraction assistant.\n"
             "Extract structured summary data from the provided report text.\n\n"
             "RETURN ONLY A VALID JSON OBJECT matching this schema:\n"
             "{\n"
@@ -188,8 +194,7 @@ class GeminiClient:
         # 1. Try official SDK
         if self.client:
             try:
-                # Try gemini-2.5-flash or gemini-1.5-flash
-                for model_id in ["gemini-2.5-flash", "gemini-1.5-flash"]:
+                for model_id in ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro"]:
                     try:
                         res = self.client.models.generate_content(
                             model=model_id,

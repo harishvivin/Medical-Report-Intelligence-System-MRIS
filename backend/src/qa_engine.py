@@ -291,6 +291,7 @@ class QAEngine:
     def _try_direct_entity_extraction(self, parsed_q: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         norm_q = parsed_q["normalized_question"]
         entities = parsed_q["target_entities"]
+        keywords = parsed_q["keywords"]
 
         # Helper to get best bounding box (prefer parent row)
         def get_best_bbox(b: Dict[str, Any]) -> List[float]:
@@ -315,7 +316,7 @@ class QAEngine:
         if "hospital_name" in entities or any(w in norm_q for w in ["hospital", "clinic", "laboratory", "lab name", "diagnostic center"]):
             for block in self.index.blocks:
                 txt = block["text"]
-                m = re.search(r'(?:hospital\s*name|laboratory|clinic)\s*[:\-]\s*([A-Za-z0-9\s&\.]+)', txt, re.I)
+                m = re.search(r'(?:hospital\s*name|laboratory|clinic|diagnostic\s*center)\s*[:\-]?\s*([A-Za-z0-9\s&\.]+)', txt, re.I)
                 if m:
                     raw_val = m.group(1).strip()
                     clean_val = re.split(r'\s+(?:proposer|patient|date|service|hsp|branch)', raw_val, flags=re.I)[0].strip()
@@ -326,7 +327,7 @@ class QAEngine:
                         "confidence": 0.98,
                         "bounding_box": get_best_bbox(block)
                     }
-                if any(kw in txt.lower() for kw in ["metro diagnostic", "city care hospital", "apollo health", "st. jude heart", "global diagnostics", "jeevandeep diagnostic"]):
+                if any(kw in txt.lower() for kw in ["hospital", "diagnostic", "laboratory", "clinic", "health care"]):
                     header_line = [l.strip() for l in txt.split("\n") if any(kw in l.lower() for kw in ["hospital", "diagnostic", "laboratory", "clinic", "institute"])][0]
                     return {
                         "answer": f"Hospital / Lab: {header_line}",
@@ -384,7 +385,7 @@ class QAEngine:
         if is_asking_patient_name:
             for block in self.index.blocks:
                 txt = block["text"]
-                m = re.search(r'(?:patient\s*name|proposer\s*name|client\s*name|pt\.?\s*name)\s*[:\-]\s*([A-Za-z\s\.]+)', txt, re.I)
+                m = re.search(r'(?:patient(?:\'?s)?\s*name|proposer\s*name|client\s*name|pt\.?\s*name)\s*[:\-]?\s*([A-Za-z\s\.]+)', txt, re.I)
                 if m:
                     raw_val = m.group(1).strip()
                     clean_val = re.split(r'\s+(?:referred|ref|age|gender|sex|date|service|hsp|branch|divisional)', raw_val, flags=re.I)[0].strip()
@@ -397,18 +398,20 @@ class QAEngine:
                             "bounding_box": get_best_bbox(block)
                         }
 
-        # 6. Targeted Lab Results
+        # 6. Targeted Lab & Diagnostic Results
         kw_map = {
-            "hemoglobin": ["hemoglobin", "hgb", "hb"],
+            "hemoglobin": ["hemoglobin", "haemoglobin", "hgb", "hb"],
             "creatinine": ["creatinine", "serum creatinine"],
             "hba1c": ["hba1c", "glycated hemoglobin"],
             "blood pressure": ["blood pressure", "bp"],
             "hiv": ["hiv", "hiv 1", "hiv 2", "serology"],
-            "ecg": ["ecg", "ekg", "rhythm", "electrocardiogram"],
-            "wbc": ["wbc", "white blood cell", "leukocyte"],
-            "platelets": ["platelet", "plt"],
+            "ecg": ["ecg", "ekg", "rhythm", "electrocardiogram", "cardiology", "sinus rhythm"],
+            "wbc": ["wbc", "white blood cell", "leukocyte", "total leukocyte"],
+            "platelets": ["platelet", "plt", "platelet count"],
             "glucose": ["glucose", "fasting blood glucose", "fbs", "sugar"],
-            "tsh": ["tsh", "thyroid"]
+            "tsh": ["tsh", "thyroid"],
+            "cholesterol": ["cholesterol", "triglycerides", "hdl", "ldl"],
+            "bilirubin": ["bilirubin", "sgot", "sgpt", "alt", "ast", "alp"]
         }
 
         for test_key, synonyms in kw_map.items():
@@ -416,15 +419,21 @@ class QAEngine:
                 for block in self.index.blocks:
                     norm_txt = block["normalized_text"]
                     if any(syn in norm_txt for syn in synonyms):
-                        if ":" in block["text"] or any(char.isdigit() for char in block["text"]) or any(v in norm_txt for v in ["non-reactive", "reactive", "sinus rhythm", "negative", "positive", "normal"]):
-                            ans_text = block.get("full_row_text") or block["text"].strip()
-                            return {
-                                "answer": ans_text,
-                                "page_number": block["page_number"],
-                                "page_index": block["page_index"],
-                                "confidence": 0.96,
-                                "bounding_box": get_best_bbox(block)
-                            }
+                        lines = [l.strip() for l in block["text"].split("\n") if any(syn in l.lower() for syn in synonyms)]
+                        target_line = lines[0] if lines else block["text"].strip()
+                        
+                        # Skip generic document/panel headers if they don't contain actual test result values
+                        if any(h in target_line.lower() for h in ["examination", "panel", "report", "department", "laboratory"]) and not any(v in target_line.lower() for v in ["normal", "sinus rhythm", "non-reactive", "reactive", "positive", "negative", "high", "low", ":"]):
+                            continue
+
+                        ans_text = block.get("full_row_text") or target_line
+                        return {
+                            "answer": ans_text,
+                            "page_number": block["page_number"],
+                            "page_index": block["page_index"],
+                            "confidence": 0.96,
+                            "bounding_box": get_best_bbox(block)
+                        }
 
         return None
 
