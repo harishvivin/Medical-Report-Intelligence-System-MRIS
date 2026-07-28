@@ -9,6 +9,60 @@ class TextSearchEngine:
     def __init__(self, index: DocumentIndex):
         self.index = index
 
+    def search_pages(self, question_parsed: Dict[str, Any], top_k: int = 5) -> List[int]:
+        """
+        Ranks candidate pages based on TF-IDF cosine similarity, keyword overlap,
+        and entity boosting. Returns top_k candidate page numbers (1-indexed) sorted in page order.
+        """
+        if not self.index.blocks:
+            return []
+
+        all_pages = sorted(list(set(b["page_number"] for b in self.index.blocks)))
+        if len(all_pages) <= top_k:
+            return all_pages
+
+        norm_q = question_parsed["normalized_question"]
+        keywords = question_parsed["keywords"]
+        target_entities = question_parsed["target_entities"]
+
+        # Compute TF-IDF Cosine Similarity
+        query_vec = self.index.transform_query(norm_q)
+        tfidf_scores = np.zeros(len(self.index.blocks))
+        
+        if query_vec is not None and self.index.tfidf_matrix is not None:
+            sim_matrix = cosine_similarity(query_vec, self.index.tfidf_matrix)
+            tfidf_scores = sim_matrix.flatten()
+
+        page_scores: Dict[int, float] = {p: 0.0 for p in all_pages}
+
+        for i, block in enumerate(self.index.blocks):
+            page_num = block["page_number"]
+            block_text_norm = block["normalized_text"]
+            base_tfidf = float(tfidf_scores[i])
+
+            kw_match_count = sum(1 for kw in keywords if re.search(r'\b' + re.escape(kw) + r'\b', block_text_norm))
+            kw_overlap_score = (kw_match_count / max(1, len(keywords))) if keywords else 0.0
+
+            entity_bonus = 0.0
+            if target_entities and (base_tfidf > 0.05 or kw_overlap_score > 0.2):
+                for entity in target_entities:
+                    if entity in block_text_norm or any(re.search(r'\b' + re.escape(kw) + r'\b', block_text_norm) for kw in keywords):
+                        entity_bonus += 0.25
+
+            finding_boost = 0.15 if any(v in block_text_norm for v in ["impression", "sinus rhythm", "rhythm", "g/dl", "mg/dl", "mmhg", "bpm", "%", "normal", "high", "low", "non-reactive", "reactive", "positive", "negative"]) else 0.0
+
+            if keywords and kw_match_count == 0 and base_tfidf < 0.12:
+                composite_score = 0.0
+            else:
+                composite_score = (0.45 * base_tfidf) + (0.40 * kw_overlap_score) + entity_bonus + finding_boost
+
+            if composite_score > page_scores[page_num]:
+                page_scores[page_num] = composite_score
+
+        ranked_pages = sorted(all_pages, key=lambda p: page_scores[p], reverse=True)
+        selected_pages = ranked_pages[:top_k]
+        return sorted(selected_pages)
+
     def search(self, question_parsed: Dict[str, Any], top_k: int = 3) -> List[Tuple[Dict[str, Any], float]]:
         """
         Searches indexed document blocks using TF-IDF cosine similarity, keyword overlap,

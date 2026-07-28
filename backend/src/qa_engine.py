@@ -1,5 +1,5 @@
 import re
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, Tuple
 from pdf_reader import PDFReader
 from document_index import DocumentIndex
 from question_parser import QuestionParser
@@ -8,6 +8,8 @@ from cropper import ScreenshotCropper
 from config import MIN_CONFIDENCE_SCORE
 from logger import logger
 
+from gemini_client import GeminiClient
+
 NOT_FOUND_MESSAGE = "The uploaded report does not contain this information."
 
 class QAEngine:
@@ -15,37 +17,101 @@ class QAEngine:
         self.pdf_path = pdf_path
         self.index = document_index
         self.search_engine = TextSearchEngine(document_index)
+        self.gemini_client = GeminiClient()
+
+    def _get_complete_page_context(self, candidate_pages: List[int]) -> Dict[int, str]:
+        """
+        Collects ALL text blocks/rows for each candidate page in original reading order.
+        Preserves complete table rows and nearby labels & values.
+        """
+        pages_context = {}
+        for page_num in candidate_pages:
+            page_rows = [
+                b for b in self.index.blocks
+                if b["page_number"] == page_num and b.get("type") == "row"
+            ]
+            
+            if not page_rows:
+                page_rows = [
+                    b for b in self.index.blocks
+                    if b["page_number"] == page_num and b.get("type") == "block"
+                ]
+
+            page_rows.sort(key=lambda b: (b["bounding_box"][1], b["bounding_box"][0]))
+
+            lines = []
+            seen = set()
+            for b in page_rows:
+                txt = b.get("full_row_text") or b.get("text", "")
+                txt_clean = txt.strip()
+                if txt_clean and txt_clean not in seen:
+                    lines.append(txt_clean)
+                    seen.add(txt_clean)
+
+            pages_context[page_num] = "\n".join(lines)
+
+        return pages_context
 
     def answer_question(self, question: str) -> Dict[str, Any]:
         """
-        Answers a user question based ONLY on the indexed PDF content with 100% precision.
-        Returns:
-            {
-                "question": str,
-                "answer": str,
-                "page_number": Optional[int],
-                "confidence": float,
-                "snippet_url": Optional[str],
-                "bounding_box": Optional[List[float]]
-            }
+        Answers a user question based ONLY on the indexed PDF content.
+        Uses Gemini API (Free Tier) when available for reasoning, and PyMuPDF for bounding box crops.
         """
         parsed_q = QuestionParser.parse(question)
         logger.info(f"Parsed question intent: {parsed_q['intent']}, target entities: {parsed_q['target_entities']}")
 
-        # Tier 0: Abnormal Values Summary Request ("Are there any high or low abnormal values?")
+        # Primary Engine: Google Gemini API
+        if self.gemini_client.is_available():
+            try:
+                # Retrieve top candidate PAGES (NOT individual blocks)
+                candidate_pages = self.search_engine.search_pages(parsed_q, top_k=5)
+                pages_context = self._get_complete_page_context(candidate_pages)
+
+                gemini_res = self.gemini_client.extract_answer(question, pages_context)
+                if gemini_res:
+                    if not gemini_res.get("found") or "does not contain this information" in gemini_res.get("answer", "").lower():
+                        logger.info("Gemini API determined query info is NOT present in report.")
+                        return {
+                            "question": question,
+                            "answer": NOT_FOUND_MESSAGE,
+                            "page_number": None,
+                            "confidence": 0.0,
+                            "snippet_url": None,
+                            "bounding_box": None
+                        }
+
+                    matched_line = gemini_res.get("matched_line") or gemini_res.get("matched_text")
+                    page_num = gemini_res.get("page")
+
+                    # Map Gemini matched_line back to physical PyMuPDF parent_row_bbox
+                    target_page, page_idx, bbox = self._find_bbox_for_matched_line(matched_line, page_num)
+
+                    matched_data = {
+                        "answer": gemini_res["answer"],
+                        "page_number": target_page or page_num or 1,
+                        "page_index": page_idx or 0,
+                        "confidence": gemini_res.get("confidence", 0.98),
+                        "bounding_box": bbox
+                    }
+                    logger.info(f"Gemini API answered question successfully with confidence {matched_data['confidence']}")
+                    return self._build_response(question, matched_data)
+            except Exception as e:
+                logger.error(f"Error during Gemini QA execution: {e}. Falling back to PyMuPDF deterministic engine.", exc_info=True)
+
+        # Fallback Tier 0: Abnormal Values Summary Request
         if parsed_q["intent"] == "abnormal_values_request":
             abnormal_res = self._extract_abnormal_summary()
             if abnormal_res:
                 logger.info(f"Abnormal values query answered with confidence {abnormal_res['confidence']}")
                 return self._build_response(question, abnormal_res)
 
-        # Tier 1: Direct Targeted Entity & Key-Value Lookup
+        # Fallback Tier 1: Direct Targeted Entity & Key-Value Lookup
         direct_result = self._try_direct_entity_extraction(parsed_q)
         if direct_result:
             logger.info(f"Direct entity lookup hit with confidence {direct_result['confidence']}")
             return self._build_response(question, direct_result)
 
-        # Tier 2: Hybrid Row & Block Vector Search
+        # Fallback Tier 2: Hybrid Row & Block Vector Search
         search_results = self.search_engine.search(parsed_q, top_k=5)
 
         if not search_results:
@@ -84,6 +150,72 @@ class QAEngine:
         }
 
         return self._build_response(question, matched_data)
+
+    def _find_bbox_for_matched_line(
+        self, matched_line: Optional[str], target_page: Optional[int]
+    ) -> Tuple[Optional[int], Optional[int], Optional[List[float]]]:
+        """Locates the exact PyMuPDF parent_row_bbox corresponding to Gemini's matched_line."""
+        if not matched_line:
+            first_b = self.index.blocks[0] if self.index.blocks else None
+            return (first_b["page_number"], first_b["page_index"], first_b.get("parent_row_bbox") or first_b["bounding_box"]) if first_b else (1, 0, None)
+
+        clean_line = matched_line.strip()
+        norm_line = clean_line.lower()
+        norm_line_spaces = re.sub(r'\s+', ' ', norm_line)
+
+        # Priority search order: target_page first, then all pages
+        all_pages = sorted(list(set(b["page_number"] for b in self.index.blocks)))
+        pages_to_check = []
+        if target_page and target_page in all_pages:
+            pages_to_check.append(target_page)
+        for p in all_pages:
+            if p not in pages_to_check:
+                pages_to_check.append(p)
+
+        for p in pages_to_check:
+            p_blocks = [b for b in self.index.blocks if b["page_number"] == p]
+            
+            # 1. Exact string match (case-sensitive)
+            for block in p_blocks:
+                txt = block.get("text", "").strip()
+                row_txt = (block.get("full_row_text") or "").strip()
+                if clean_line == txt or clean_line == row_txt:
+                    bbox = block.get("parent_row_bbox") or block["bounding_box"]
+                    return block["page_number"], block["page_index"], bbox
+
+            # 2. Case-insensitive exact match
+            for block in p_blocks:
+                txt = block.get("text", "").strip().lower()
+                row_txt = (block.get("full_row_text") or "").strip().lower()
+                if norm_line == txt or norm_line == row_txt:
+                    bbox = block.get("parent_row_bbox") or block["bounding_box"]
+                    return block["page_number"], block["page_index"], bbox
+
+            # 3. Normalized whitespace match
+            for block in p_blocks:
+                txt = re.sub(r'\s+', ' ', block.get("text", "").strip().lower())
+                row_txt = re.sub(r'\s+', ' ', (block.get("full_row_text") or "").strip().lower())
+                if norm_line_spaces == txt or norm_line_spaces == row_txt:
+                    bbox = block.get("parent_row_bbox") or block["bounding_box"]
+                    return block["page_number"], block["page_index"], bbox
+
+            # 4. Exact Substring match (matched_line inside row text or row text inside matched_line)
+            for block in p_blocks:
+                txt = re.sub(r'\s+', ' ', block.get("text", "").strip().lower())
+                row_txt = re.sub(r'\s+', ' ', (block.get("full_row_text") or "").strip().lower())
+                if (txt and (norm_line_spaces in txt or txt in norm_line_spaces)) or (row_txt and (norm_line_spaces in row_txt or row_txt in norm_line_spaces)):
+                    bbox = block.get("parent_row_bbox") or block["bounding_box"]
+                    return block["page_number"], block["page_index"], bbox
+
+        if target_page:
+            t_blocks = [b for b in self.index.blocks if b["page_number"] == target_page]
+            if t_blocks:
+                return t_blocks[0]["page_number"], t_blocks[0]["page_index"], t_blocks[0].get("parent_row_bbox") or t_blocks[0]["bounding_box"]
+
+        first_b = self.index.blocks[0] if self.index.blocks else None
+        if first_b:
+            return first_b["page_number"], first_b["page_index"], first_b.get("parent_row_bbox") or first_b["bounding_box"]
+        return 1, 0, None
 
     def _try_direct_entity_extraction(self, parsed_q: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         norm_q = parsed_q["normalized_question"]
