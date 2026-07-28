@@ -162,6 +162,7 @@ class QAEngine:
         clean_line = matched_line.strip()
         norm_line = clean_line.lower()
         norm_line_spaces = re.sub(r'\s+', ' ', norm_line)
+        norm_colon = re.sub(r'\s*:\s*', ' : ', norm_line_spaces)
 
         # Priority search order: target_page first, then all pages
         all_pages = sorted(list(set(b["page_number"] for b in self.index.blocks)))
@@ -173,7 +174,9 @@ class QAEngine:
                 pages_to_check.append(p)
 
         for p in pages_to_check:
+            # Prioritize 'row' entries so parent_row_bbox spans full width across columns
             p_blocks = [b for b in self.index.blocks if b["page_number"] == p]
+            p_blocks.sort(key=lambda b: 0 if b.get("type") == "row" else 1)
             
             # 1. Exact string match (case-sensitive)
             for block in p_blocks:
@@ -191,11 +194,14 @@ class QAEngine:
                     bbox = block.get("parent_row_bbox") or block["bounding_box"]
                     return block["page_number"], block["page_index"], bbox
 
-            # 3. Normalized whitespace match
+            # 3. Normalized whitespace & colon match
             for block in p_blocks:
                 txt = re.sub(r'\s+', ' ', block.get("text", "").strip().lower())
                 row_txt = re.sub(r'\s+', ' ', (block.get("full_row_text") or "").strip().lower())
-                if norm_line_spaces == txt or norm_line_spaces == row_txt:
+                txt_colon = re.sub(r'\s*:\s*', ' : ', txt)
+                row_colon = re.sub(r'\s*:\s*', ' : ', row_txt)
+
+                if norm_line_spaces in (txt, row_txt) or norm_colon in (txt_colon, row_colon):
                     bbox = block.get("parent_row_bbox") or block["bounding_box"]
                     return block["page_number"], block["page_index"], bbox
 
@@ -203,9 +209,27 @@ class QAEngine:
             for block in p_blocks:
                 txt = re.sub(r'\s+', ' ', block.get("text", "").strip().lower())
                 row_txt = re.sub(r'\s+', ' ', (block.get("full_row_text") or "").strip().lower())
-                if (txt and (norm_line_spaces in txt or txt in norm_line_spaces)) or (row_txt and (norm_line_spaces in row_txt or row_txt in norm_line_spaces)):
+                txt_colon = re.sub(r'\s*:\s*', ' : ', txt)
+                row_colon = re.sub(r'\s*:\s*', ' : ', row_txt)
+
+                if (txt and (norm_colon in txt_colon or txt_colon in norm_colon)) or (row_txt and (norm_colon in row_colon or row_colon in norm_colon)):
                     bbox = block.get("parent_row_bbox") or block["bounding_box"]
                     return block["page_number"], block["page_index"], bbox
+
+            # 5. Token overlap fallback on page
+            tokens = [w for w in re.findall(r'\b[\w\.-]+\b', norm_line) if len(w) > 1 and w not in ["the", "and", "for", "with", "range", "reference"]]
+            if tokens:
+                best_b = None
+                best_cnt = 0
+                for block in p_blocks:
+                    row_txt = (block.get("full_row_text") or block.get("text", "")).lower()
+                    cnt = sum(1 for tok in tokens if tok in row_txt)
+                    if cnt > best_cnt:
+                        best_cnt = cnt
+                        best_b = block
+                if best_b and best_cnt >= 1:
+                    bbox = best_b.get("parent_row_bbox") or best_b["bounding_box"]
+                    return best_b["page_number"], best_b["page_index"], bbox
 
         if target_page:
             t_blocks = [b for b in self.index.blocks if b["page_number"] == target_page]
