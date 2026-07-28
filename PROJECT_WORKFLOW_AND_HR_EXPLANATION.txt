@@ -1,0 +1,90 @@
+================================================================================
+          MEDICAL REPORT EXTRACT AI — PROJECT WORKFLOW & HR INTERVIEW GUIDE
+================================================================================
+
+1. EXECUTIVE PROJECT SUMMARY
+--------------------------------------------------------------------------------
+Medical Report Extract AI is an automated, production-grade Artificial Intelligence (AI)
+system designed for Medical Document Intelligence, Table-Aware Question Answering,
+and Bounding Box Screenshot Extraction.
+
+Key Value Proposition:
+- Complete Page Retrieval: Sends full page context to Gemini so lab test names, 
+  values, units, and reference ranges are never split.
+- Zero Hallucination: Gemini strictly searches supplied page text. If absent, 
+  it returns "The uploaded report does not contain this information."
+- Pixel-Accurate Row Cropping: Locates physical row bounding box coordinates 
+  (parent_row_bbox) and outputs a high-resolution PNG screenshot with green highlight.
+
+
+================================================================================
+2. STEP-BY-STEP PIPELINE WORKFLOW (HOW IT WORKS)
+================================================================================
+
+[Step 1: Document Ingestion & Page Rendering]
+- The user uploads a Medical Report PDF file.
+- PyMuPDF (fitz) extracts raw text, visual horizontal rows across table columns, 
+  and bounding box coordinates for every line.
+
+[Step 2: TF-IDF Candidate Page Shortlisting]
+- The system computes TF-IDF cosine similarity, keyword overlap, and medical entity 
+  matches to select the Top 5 candidate pages (or all pages if <= 5 pages).
+
+[Step 3: Gemini Page Context Reasoning & Structured Extraction]
+- Complete page texts are sent to Google Gemini API with strict JSON instructions.
+- Gemini returns structured JSON:
+  {
+    "found": true,
+    "answer": "13.8 g/dL",
+    "matched_line": "Hemoglobin : 13.8 g/dL (Reference Range: 13.5 - 17.5 g/dL)",
+    "page": 1,
+    "confidence": 0.99
+  }
+
+[Step 4: Bounding Box Coordinate Search & Crop Generation]
+- The Bounding Box Search Engine takes `matched_line` and target `page` number.
+- Locates the exact matching row entry in PyMuPDF to get its `parent_row_bbox` [x0, y0, x1, y1].
+- The Image Cropper renders the page at 2.5x high resolution, applies a green highlight box,
+  crops the row, and returns the cropped PNG image URL.
+
+
+================================================================================
+3. INTERVIEW TALKING POINTS FOR HR & TECHNICAL ROUNDS
+================================================================================
+
+Q1: "Can you summarize your project in 2 sentences?"
+A1: "I built Medical Report Extract AI, a system that processes medical PDF reports, 
+     uses TF-IDF candidate page retrieval and Google Gemini LLM reasoning to accurately 
+     extract lab results, and automatically crops out the exact highlighted row screenshot 
+     from the PDF."
+
+Q2: "Why do you send full candidate pages to Gemini instead of isolated text snippets?"
+A2: "Medical reports are table-based where test names, values, units, and reference ranges 
+     span horizontally. Fragmented snippets risk cutting off values. Sending full candidate 
+     pages preserves complete table rows and reading order."
+
+Q3: "How does the system crop the exact bounding box from the document?"
+A3: "Gemini returns the exact matched_line string and page number. My bounding box engine 
+     looks up that matched_line on the target page in PyMuPDF to retrieve its parent_row_bbox 
+     coordinates, and crops out a 2.5x high-res image snippet."
+
+Q4: "Where can YOLOv8 fit into this pipeline?"
+A4: "PyMuPDF provides 100% exact text bounding boxes instantly from digital vector PDFs. 
+     For scanned paper or camera-captured physical medical reports, YOLOv8 object detection 
+     can be fine-tuned to detect visual table rows, header blocks, and lab seal stamps."
+
+
+================================================================================
+4. KEY ARCHITECTURE COMPONENTS TABLE
+================================================================================
+
+Component               Technology               Function
+--------------------------------------------------------------------------------
+PDF Reader              PyMuPDF (fitz)           Extracts text, visual rows, bounding boxes
+Retrieval Engine        TF-IDF + Scikit-Learn    Ranks top candidate pages
+Reasoning LLM           Google Gemini API        Structured JSON answer & matched_line
+Bounding Box Locator    Row Alignment Engine     Maps matched_line to parent_row_bbox
+Cropper Engine          Pillow + PyMuPDF Pixmap  Renders 2.5x PNG crop with green highlight
+Backend                 FastAPI + Uvicorn        REST API backend server
+Frontend                React + Vite + Tailwind  Responsive user web dashboard
+================================================================================
