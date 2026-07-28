@@ -84,19 +84,19 @@ class GeminiClient:
         full_context_str = "\n".join(formatted_pages)
 
         system_prompt = (
-            "You are an exact medical report understanding AI.\n"
+            "You are an expert medical document intelligence system.\n"
             "Analyze the provided COMPLETE PAGE TEXTS and answer the user's question accurately.\n\n"
             "STRICT RULES:\n"
-            "1. Base your answer ONLY on the supplied page texts. Do NOT guess, do NOT infer, and do NOT use medical knowledge.\n"
-            "2. Search ONLY inside the supplied page text.\n"
-            "3. If the answer exists in the text:\n"
+            "1. Base your answer strictly on the supplied page text. Do NOT invent or hallucinate data.\n"
+            "2. Understand all medical lab test categories (Basic Info, CBC, Kidney Function, Diabetes, Liver Function, Lipid Profile, Serology/Infectious Disease, Urine Analysis, ECG, Summaries).\n"
+            "3. If the user asks about specific test values, metadata (e.g. Patient Name, Age, Gender, Hospital, Application Number, MER Number, HSP Code, Service Type), or diagnostic findings:\n"
             "   - 'found': true\n"
-            "   - 'answer': Extract the concise answer string (e.g. '13.8 g/dL', 'John Doe', '1.8 mg/dL', 'Sinus Rhythm', 'Non-Reactive').\n"
-            "   - 'matched_line': Extract the EXACT complete row/line from the page text containing the answer (e.g. 'Hemoglobin : 13.8 g/dL (Reference Range: 13.5 - 17.5 g/dL)'). "
+            "   - 'answer': Concise and clear answer string with value, units, or clinical status.\n"
+            "   - 'matched_line': Extract the EXACT complete row/line from the page text containing the target answer (e.g. 'Hemoglobin : 13.8 g/dL (Reference Range: 13.5 - 17.5 g/dL)'). "
             "This 'matched_line' MUST be copied EXACTLY character-for-character from the supplied PDF text. Never paraphrase, never shorten, and never modify punctuation.\n"
             "   - 'page': Integer page number where the line was found.\n"
             "   - 'confidence': Float confidence score between 0.0 and 1.0 (e.g. 0.99).\n"
-            "4. If the requested information does NOT exist in the provided text, return:\n"
+            "4. If the requested parameter or test is NOT present anywhere in the supplied text, return:\n"
             "   'found': false,\n"
             "   'answer': 'The uploaded report does not contain this information.',\n"
             "   'matched_line': null,\n"
@@ -107,7 +107,7 @@ class GeminiClient:
             '  "found": true,\n'
             '  "answer": "13.8 g/dL",\n'
             '  "matched_line": "Hemoglobin : 13.8 g/dL",\n'
-            '  "page": 4,\n'
+            '  "page": 1,\n'
             '  "confidence": 0.99\n'
             "}"
         )

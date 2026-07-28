@@ -3,12 +3,12 @@ from typing import Dict, Any, List, Set
 
 # Medical entity mapping for targeted keyword extraction
 MEDICAL_ENTITIES = {
-    "hemoglobin": ["hemoglobin", "hgb", "hb", "haemoglobin"],
+    "hemoglobin": ["hemoglobin", "hgb", "hb", "haemoglobin", "heamoglobin"],
     "creatinine": ["creatinine", "serum creatinine"],
     "hba1c": ["hba1c", "glycated hemoglobin", "hb a1c", "a1c"],
     "blood pressure": ["blood pressure", "bp", "systolic", "diastolic"],
-    "hiv": ["hiv", "hiv 1", "hiv 2", "human immunodeficiency virus", "serology", "elisa"],
-    "ecg": ["ecg", "ekg", "electrocardiogram", "heart rate", "rhythm"],
+    "hiv": ["hiv", "hiv 1", "hiv 2", "human immunodeficiency virus", "serology", "elisa", "hbsag", "hepatitis"],
+    "ecg": ["ecg", "ekg", "electrocardiogram", "heart rate", "rhythm", "sinus rhythm"],
     "patient_name": ["patient name", "patient", "name", "proposer name", "client name", "pt name"],
     "hospital_name": ["hospital name", "hospital", "clinic", "laboratory", "lab", "center", "institute", "diagnostic"],
     "doctor": ["doctor", "dr", "referred by", "ref by", "physician"],
@@ -16,13 +16,16 @@ MEDICAL_ENTITIES = {
     "age": ["age", "yrs", "years old", "yo"],
     "gender": ["gender", "sex", "male", "female"],
     "diagnosis": ["diagnosis", "impression", "conclusion", "opinion", "finding", "result", "test details"],
-    "wbc": ["wbc", "white blood cell", "leukocyte", "tlc"],
+    "wbc": ["wbc", "white blood cell", "leukocyte", "tlc", "total leukocyte count", "neutrophil", "lymphocyte"],
     "platelets": ["platelet", "platelet count", "plt"],
+    "rbc": ["rbc", "red blood cell", "rbc count", "mcv", "mch", "mchc", "esr"],
     "glucose": ["glucose", "sugar", "fasting sugar", "ppbs", "fbs", "blood sugar"],
-    "cholesterol": ["cholesterol", "triglycerides", "hdl", "ldl", "lipid", "serum cholesterol"],
+    "cholesterol": ["cholesterol", "triglyceride", "triglycerides", "hdl", "ldl", "vldl", "lipid", "serum cholesterol"],
     "thyroid": ["tsh", "t3", "t4", "thyroid"],
-    "urea": ["urea", "bun", "blood urea"],
-    "liver": ["sgot", "sgpt", "ast", "alt", "bilirubin", "alkaline phosphatase", "alp", "ggt"]
+    "urea": ["urea", "bun", "blood urea", "blood urea nitrogen"],
+    "liver": ["sgot", "sgpt", "ast", "alt", "bilirubin", "total bilirubin", "direct bilirubin", "indirect bilirubin", "alkaline phosphatase", "alp", "ggt"],
+    "urine": ["urine", "urine colour", "urine ph", "protein", "sugar", "specific gravity", "pus cells", "epithelial cells", "rcbs in urine"],
+    "application": ["application number", "app no", "app number", "mer number", "mer no", "hsp code", "service type"]
 }
 
 SUMMARY_TRIGGER_WORDS = {"summary", "summarize", "overview", "report summary", "brief", "key findings"}
