@@ -75,12 +75,12 @@ export default function FileUpload({ onUploadSuccess, isProcessing, activeDoc })
         onDragOver={handleDrag}
         onDrop={handleDrop}
         onClick={() => fileInputRef.current?.click()}
-        className={`relative overflow-hidden cursor-pointer rounded-2xl p-8 text-center transition-all duration-300 glass-panel border-2 ${
+        className={`relative overflow-hidden cursor-pointer rounded-2xl p-8 text-center transition-all duration-300 bg-white dark:bg-slate-900 shadow-xl border-2 ${
           dragActive
-            ? 'border-sky-500 bg-sky-500/10 shadow-glow-sky scale-[1.01]'
+            ? 'border-sky-500 bg-sky-50 dark:bg-sky-950/40 shadow-glow-sky scale-[1.01]'
             : activeDoc
-            ? 'border-sky-500/40 bg-white/80 dark:bg-slate-900/60'
-            : 'border-slate-200/90 dark:border-slate-800 hover:border-sky-500/50 hover:bg-white dark:hover:bg-slate-900/80'
+            ? 'border-sky-500/60 bg-white dark:bg-slate-900'
+            : 'border-slate-300 dark:border-slate-700/80 hover:border-sky-500/70 hover:shadow-2xl bg-white dark:bg-slate-900'
         }`}
       >
         <input
@@ -105,19 +105,19 @@ export default function FileUpload({ onUploadSuccess, isProcessing, activeDoc })
                   style={{ width: `${progress}%` }}
                 />
               </div>
-              <p className="text-xs text-slate-700 dark:text-slate-300 font-medium animate-pulse">
+              <p className="text-xs text-slate-800 dark:text-slate-200 font-semibold animate-pulse">
                 Extracting text spans & indexing multi-page document... {progress}%
               </p>
             </div>
           ) : activeDoc ? (
-            <div className="flex items-center justify-between w-full max-w-xl glass-card border border-sky-500/40 p-4 rounded-xl">
+            <div className="flex items-center justify-between w-full max-w-xl bg-slate-50 dark:bg-slate-800/80 border border-sky-500/50 p-4 rounded-xl shadow-sm">
               <div className="flex items-center gap-3">
                 <div className="p-2.5 rounded-lg bg-sky-500/20 text-sky-600 dark:text-sky-400">
                   <CheckCircle2 className="w-6 h-6" />
                 </div>
                 <div className="text-left">
-                  <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{activeDoc.filename}</p>
-                  <p className="text-xs text-sky-600 dark:text-sky-400 font-medium">
+                  <p className="text-sm font-bold text-slate-900 dark:text-slate-100">{activeDoc.filename}</p>
+                  <p className="text-xs text-sky-600 dark:text-sky-400 font-semibold">
                     Document processed • {activeDoc.page_count} {activeDoc.page_count === 1 ? 'page' : 'pages'} indexed
                   </p>
                 </div>
@@ -128,21 +128,21 @@ export default function FileUpload({ onUploadSuccess, isProcessing, activeDoc })
                   e.stopPropagation();
                   fileInputRef.current?.click();
                 }}
-                className="px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-xs font-medium text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition"
+                className="px-3.5 py-1.5 rounded-lg bg-white dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600 text-xs font-semibold text-slate-800 dark:text-slate-200 border border-slate-300 dark:border-slate-600 transition shadow-sm"
               >
                 Upload Different PDF
               </button>
             </div>
           ) : (
             <>
-              <div className="w-14 h-14 rounded-2xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-500 dark:text-sky-400 mb-1 group-hover:scale-110 transition">
+              <div className="w-14 h-14 rounded-2xl bg-sky-500/10 border border-sky-500/30 flex items-center justify-center text-sky-600 dark:text-sky-400 mb-1 group-hover:scale-110 transition shadow-sm">
                 <UploadCloud className="w-7 h-7" />
               </div>
               <div>
-                <p className="text-base font-semibold text-slate-800 dark:text-slate-200">
-                  Drag & drop your medical report PDF here, or <span className="text-sky-600 dark:text-sky-400 underline underline-offset-4">browse file</span>
+                <p className="text-base font-bold text-slate-900 dark:text-slate-100">
+                  Drag & drop your medical report PDF here, or <span className="text-sky-600 dark:text-sky-400 underline underline-offset-4 font-extrabold">browse file</span>
                 </p>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                <p className="text-xs text-slate-600 dark:text-slate-400 font-medium mt-1">
                   Supports blood tests, discharge summaries, ECG diagnostic reports, radiology & lipid profiles
                 </p>
               </div>
