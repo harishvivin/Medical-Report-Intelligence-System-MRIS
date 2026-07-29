@@ -58,7 +58,8 @@ class GeminiClientManager:
         return (
             f'Look through the entire PDF and find the part that answers this question: "{user_question}". '
             f'Return the page number, the exact answer_text (the actual value or finding, e.g. "13.8 g/dL" or "Manjit Singh"), '
-            f'and the bounding box [ymin, xmin, ymax, xmax] (0-1000 scale) of exactly that section.'
+            f'and the bounding box [ymin, xmin, ymax, xmax] (0-1000 scale). '
+            f'IMPORTANT: The bounding box MUST be drawn widely to include the surrounding context (e.g. the entire table row containing both the test name and the value/tick mark, NOT just the isolated tick mark or number).'
         )
 
     def _call_gemini(self, client: genai.Client, pdf_path: str, prompt: str) -> GroundingBox:
