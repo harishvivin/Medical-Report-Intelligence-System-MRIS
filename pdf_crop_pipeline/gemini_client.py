@@ -1,12 +1,14 @@
 import os
 import json
+from pathlib import Path
 from typing import List, Optional
 from pydantic import BaseModel, Field
 from google import genai
 from google.genai import types
 try:
     from dotenv import load_dotenv
-    load_dotenv()
+    _env_path = Path(__file__).resolve().parent.parent / ".env"
+    load_dotenv(dotenv_path=_env_path, encoding="utf-8-sig", override=True)
 except ImportError:
     pass
 
@@ -14,7 +16,8 @@ except ImportError:
 class GroundingBox(BaseModel):
     page_number: int = Field(description="1-based index of the PDF page containing the answer")
     box_2d: List[int] = Field(description="[ymin, xmin, ymax, xmax] normalized strictly to 0-1000")
-    label: Optional[str] = Field(description="Brief description of the highlighted region")
+    answer_text: str = Field(description="The exact value or text that directly answers the question (e.g. '13.8 g/dL', 'Manjit Singh')")
+    label: Optional[str] = Field(default=None, description="Brief description of the highlighted region")
 
 class GeminiClientManager:
     def __init__(self):

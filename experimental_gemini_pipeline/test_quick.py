@@ -49,9 +49,10 @@ def run_test(question: str, output_dir: Path):
     manager = GeminiClientManager()
     result = manager.extract_bounding_box(PDF_PATH, question)
 
-    print(f"[PAGE]    : {result.page_number}")
-    print(f"[BOX_2D]  : {result.box_2d}  (ymin, xmin, ymax, xmax  — 0-1000 scale)")
-    print(f"[LABEL]   : {result.label}")
+    print(f"[PAGE]       : {result.page_number}")
+    print(f"[BOX_2D]     : {result.box_2d}  (ymin, xmin, ymax, xmax  — 0-1000 scale)")
+    print(f"[ANSWER_TEXT]: {result.answer_text}")
+    print(f"[LABEL]      : {result.label}")
 
     # Crop the region from the PDF
     slug = question[:30].replace(" ", "_").replace("?", "").lower()
@@ -63,7 +64,7 @@ def run_test(question: str, output_dir: Path):
         box_2d=result.box_2d,
         output_path=out_path,
     )
-    print(f"[CROP]    : Saved → {out_path}")
+    print(f"[CROP]       : {out_path}")
 
 if __name__ == "__main__":
     output_dir = Path(__file__).resolve().parent / "crops"

@@ -12,11 +12,12 @@ _ENV_PATH = Path(__file__).resolve().parent.parent / ".env"
 load_dotenv(dotenv_path=_ENV_PATH, encoding="utf-8-sig", override=True)
 
 
-# Schema aligned with Gemini's native visual grounding box_2d
+# Schema — Gemini returns page, coordinates, and the actual answer text
 class GroundingBox(BaseModel):
     page_number: int = Field(description="1-based index of the PDF page containing the answer")
     box_2d: List[int] = Field(description="[ymin, xmin, ymax, xmax] normalized strictly to 0-1000")
-    label: Optional[str] = Field(description="Brief description of the highlighted region")
+    answer_text: str = Field(description="The exact value or text that directly answers the question (e.g. '13.8 g/dL', 'Manjit Singh', 'Normal sinus rhythm')")
+    label: Optional[str] = Field(default=None, description="Brief description of the highlighted region")
 
 class GeminiClientManager:
     def __init__(self):
@@ -54,7 +55,11 @@ class GeminiClientManager:
                 raise RuntimeError("Primary API key failed and no distinct fallback key provided.") from e
 
     def _build_prompt(self, user_question: str) -> str:
-        return f'Look through the entire PDF and find the part that answers this question: "{user_question}". Return the page number and the bounding box coordinates [ymin, xmin, ymax, xmax] (0-1000 scale) of exactly that section.'
+        return (
+            f'Look through the entire PDF and find the part that answers this question: "{user_question}". '
+            f'Return the page number, the exact answer_text (the actual value or finding, e.g. "13.8 g/dL" or "Manjit Singh"), '
+            f'and the bounding box [ymin, xmin, ymax, xmax] (0-1000 scale) of exactly that section.'
+        )
 
     def _call_gemini(self, client: genai.Client, pdf_path: str, prompt: str) -> GroundingBox:
         # Upload PDF file to Gemini Files API
@@ -93,8 +98,9 @@ def locate_answer_in_pdf(pdf_path: str, question: str) -> dict:
             "page": gb.page_number,
             "box_2d": gb.box_2d,
             "bounding_box": gb.box_2d,
+            "answer": gb.answer_text,      # ← now returns the REAL answer value
+            "matched_text": gb.answer_text, # ← also exposed as matched_text
             "label": gb.label,
-            "answer": gb.label,
             "confidence": 0.99
         }
     except Exception as e:
