@@ -5,7 +5,7 @@ Tests:
 - Prompt generation with f-strings
 - PyMuPDF coordinate cropping & PNG generation
 - Medical questions processing across sample medical PDFs:
-  (Patient Name, Hospital Name, Creatinine, HbA1c, Hemoglobin, Blood Pressure, Diagnosis, ECG, HIV, Summary)
+  (Patient Name, Age, Gender, Hospital, Doctor, Diagnosis, Creatinine, HbA1c, Hemoglobin, Blood Pressure, HIV, ECG, Summary)
 - Verification of page, bounding box, crop, and JSON structure.
 """
 
@@ -41,14 +41,17 @@ class TestExperimentalGeminiPipeline(unittest.TestCase):
         cls.sample_pdf = str(SAMPLES_DIR / "report1_blood_work.pdf")
         cls.test_questions = [
             "Patient Name",
-            "Hospital Name",
+            "Age",
+            "Gender",
+            "Hospital",
+            "Doctor",
+            "Diagnosis",
             "Creatinine",
             "HbA1c",
             "Hemoglobin",
             "Blood Pressure",
-            "Diagnosis",
-            "ECG",
             "HIV",
+            "ECG",
             "Summary"
         ]
 
@@ -57,16 +60,16 @@ class TestExperimentalGeminiPipeline(unittest.TestCase):
         question = "What is the Hemoglobin level?"
         prompt = build_prompt(question)
         self.assertIn(question, prompt)
-        self.assertIn("Return ONLY JSON", prompt)
+        self.assertIn("Return ONLY valid JSON.", prompt)
         self.assertIn("bounding_box", prompt)
-        self.assertIn("Never hallucinate.", prompt)
+        self.assertIn("Do not hallucinate.", prompt)
 
     def test_02_coordinate_cropper_pymupdf(self):
         """Verify PyMuPDF coordinate cropper creates a valid PNG file from coordinates."""
         if not Path(self.sample_pdf).exists():
             self.skipTest(f"Sample PDF {self.sample_pdf} not found.")
 
-        bbox = {"x1": 100, "y1": 200, "x2": 500, "y2": 400}
+        bbox = {"x1": 0.1, "y1": 0.2, "x2": 0.5, "y2": 0.4}
         crop_path = crop_pdf_region(
             pdf_path=self.sample_pdf,
             page_num=1,
@@ -84,7 +87,7 @@ class TestExperimentalGeminiPipeline(unittest.TestCase):
         mock_response = json.dumps({
             "found": True,
             "page": 1,
-            "bounding_box": {"x1": 100, "y1": 150, "x2": 600, "y2": 300},
+            "bounding_box": {"x1": 0.10, "y1": 0.15, "x2": 0.60, "y2": 0.30},
             "matched_text": "Hemoglobin : 14.8 g/dL",
             "confidence": 0.99
         })
@@ -105,12 +108,12 @@ class TestExperimentalGeminiPipeline(unittest.TestCase):
         mock_success_response = json.dumps({
             "found": True,
             "page": 1,
-            "bounding_box": {"x1": 120, "y1": 180, "x2": 620, "y2": 320},
+            "bounding_box": {"x1": 0.12, "y1": 0.18, "x2": 0.62, "y2": 0.32},
             "matched_text": "Hemoglobin : 14.8 g/dL",
             "confidence": 0.99
         })
 
-        # First call (Primary key) raises Exception (e.g. rate limit / quota exceeded), second call (Fallback key) succeeds
+        # First call (Primary key) raises Exception (e.g. rate limit / quota exceeded 429), second call (Fallback key) succeeds
         mock_call.side_effect = [
             RuntimeError("Rate limit exceeded 429"),
             mock_success_response
@@ -126,12 +129,12 @@ class TestExperimentalGeminiPipeline(unittest.TestCase):
 
     @patch("experimental_gemini_pipeline.gemini_client._call_gemini_single_key")
     def test_05_medical_questions_verification(self, mock_call):
-        """Verify pipeline handles all required medical questions and generates correct PNG crops & JSON."""
+        """Verify pipeline handles all 13 required medical questions and generates correct PNG crops & JSON."""
         mock_response = json.dumps({
             "found": True,
             "page": 1,
-            "bounding_box": {"x1": 200, "y1": 250, "x2": 700, "y2": 350},
-            "matched_text": "Sample Value",
+            "bounding_box": {"x1": 0.20, "y1": 0.25, "x2": 0.70, "y2": 0.35},
+            "matched_text": "Sample Medical Value",
             "confidence": 0.98
         })
         mock_call.return_value = mock_response

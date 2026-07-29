@@ -13,45 +13,43 @@ def build_prompt(question: str) -> str:
     Returns:
         Formatted prompt string.
     """
-    return f"""You are a precise PDF document localization system.
+    return f"""You are an expert PDF localization system.
 
 Analyze ONLY the uploaded PDF.
 
-Question:
+The user's question is:
 
 {question}
 
-Find the exact location in the PDF that answers the question.
+Your task is NOT to summarize.
+Your task is NOT to explain.
+Your task is ONLY to locate the exact portion of the PDF that answers this question.
 
-Return ONLY JSON with no additional markdown formatting outside the JSON block.
+Return ONLY valid JSON.
 
-If the answer is found in the document, return:
+Schema:
 {{
-  "found": true,
-  "page": 1,
-  "bounding_box": {{
-      "x1": 100,
-      "y1": 200,
-      "x2": 500,
-      "y2": 300
-  }},
-  "matched_text": "exact text string extracted from the document",
-  "confidence": 0.99
+    "found": true,
+    "page": 1,
+    "bounding_box": {{
+        "x1": 0.23,
+        "y1": 0.41,
+        "x2": 0.68,
+        "y2": 0.47
+    }},
+    "matched_text": "exact text present in PDF",
+    "confidence": 0.99
 }}
 
-Note on bounding box coordinates:
-- "page": 1-based page index where the answer is found (e.g. 1 for first page).
-- "bounding_box": Normalized integer coordinates from 0 to 1000 relative to the page dimensions:
-  - x1: top-left horizontal coordinate (0-1000)
-  - y1: top-left vertical coordinate (0-1000)
-  - x2: bottom-right horizontal coordinate (0-1000)
-  - y2: bottom-right vertical coordinate (0-1000)
+IMPORTANT:
+- "page": 1-based page number where the answer is found.
+- "bounding_box": The coordinates x1, y1, x2, y2 of the answer region on the specified page (normalized between 0.0 and 1.0 or 0 and 1000, where x1, y1 is top-left and x2, y2 is bottom-right).
+- "matched_text": Must exactly match the text present in the PDF.
+- Do not paraphrase.
+- Do not hallucinate.
 
-If the answer is missing:
+If the answer does not exist in the PDF, return ONLY:
 {{
-  "found": false
+    "found": false
 }}
-
-Never hallucinate.
-Never use outside knowledge.
 """
