@@ -1,15 +1,14 @@
 services:
   - type: web
-    name: medical-report-intelligence-system
-    env: python
-    region: oregon
-    buildCommand: |
-      python -m pip install --upgrade pip
-      pip install -r backend/requirements.txt
-      cd frontend && npm install && npm run build && cd ..
-    startCommand: PYTHONPATH=backend python -m uvicorn app:app --host 0.0.0.0 --port $PORT
+    name: medical-report-extract-ai
+    runtime: python
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: python -m uvicorn app:app --host 0.0.0.0 --port $PORT
     envVars:
+      - key: PRIMARY_GEMINI_API_KEY
+        sync: false
+      - key: FALLBACK_GEMINI_API_KEY
+        sync: false
       - key: PORT
-        value: 8000
-      - key: PYTHON_VERSION
-        value: 3.10.12
+        value: "10000"
