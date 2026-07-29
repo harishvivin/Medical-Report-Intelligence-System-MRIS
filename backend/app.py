@@ -116,10 +116,19 @@ async def ask_question(request: AskQuestionRequest):
     """
     session = DOC_SESSIONS.get(request.document_id)
     if not session:
-        raise HTTPException(status_code=44, detail="Document session not found. Please upload a PDF first.")
+        raise HTTPException(status_code=404, detail="Document session not found. Please upload a PDF first.")
 
     qa_engine: QAEngine = session["qa_engine"]
     result = qa_engine.answer_question(request.question)
+    if not result:
+        return {
+            "question": request.question,
+            "answer": "The uploaded report does not contain this information.",
+            "page_number": None,
+            "confidence": 0.0,
+            "snippet_url": None,
+            "bounding_box": None
+        }
     return result
 
 @app.post("/api/summary")

@@ -26,19 +26,24 @@ export default function QaSection({ documentId, onOpenCropModal }) {
         }),
       });
 
-      const fullSnippetUrl = data.snippet_url
-        ? (data.snippet_url.startsWith('http') ? data.snippet_url : `${getApiBase()}${data.snippet_url}`)
+      if (!data) {
+        throw new Error("No response received from the QA engine.");
+      }
+
+      const rawSnippetUrl = data?.snippet_url;
+      const fullSnippetUrl = rawSnippetUrl
+        ? (rawSnippetUrl.startsWith('http') ? rawSnippetUrl : `${getApiBase()}${rawSnippetUrl}`)
         : null;
 
       setQaHistory((prev) => [
         {
           id: Date.now(),
           question: targetQ,
-          answer: data.answer,
-          pageNumber: data.page_number,
-          confidence: data.confidence,
+          answer: data?.answer || "The uploaded report does not contain this information.",
+          pageNumber: data?.page_number || null,
+          confidence: data?.confidence || 0,
           snippetUrl: fullSnippetUrl,
-          boundingBox: data.bounding_box,
+          boundingBox: data?.bounding_box || null,
         },
         ...prev,
       ]);
