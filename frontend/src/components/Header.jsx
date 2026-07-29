@@ -14,9 +14,6 @@ export default function Header({ activeDoc, theme, onToggleTheme }) {
           <div>
             <h1 className="text-xl font-bold bg-gradient-to-r from-sky-600 via-blue-600 to-indigo-600 dark:from-sky-400 dark:via-blue-300 dark:to-cyan-400 bg-clip-text text-transparent flex items-center gap-2">
               Medical Report Extract AI
-              <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-sky-500/10 border border-sky-500/20 text-sky-600 dark:text-sky-400 font-semibold">
-                Zero Hallucination
-              </span>
             </h1>
             <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
               Exact Bounding Box Screenshot Snippets & Precision Medical Extraction
