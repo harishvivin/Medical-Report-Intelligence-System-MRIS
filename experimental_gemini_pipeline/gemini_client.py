@@ -1,7 +1,7 @@
 """
 Gemini API Client Module for Experimental Gemini Pipeline.
 Supports dual API Key failover (GEMINI_API_KEY_PRIMARY -> GEMINI_API_KEY_FALLBACK).
-Extracts visual location of requested answers in PDF using Flash-Lite model.
+Extracts visual location of requested answers across all pages of a PDF using Flash-Lite model.
 """
 
 import json
@@ -9,6 +9,8 @@ import logging
 import re
 from pathlib import Path
 from typing import Dict, Any, List
+
+import fitz  # PyMuPDF for page counting
 
 from .config import (
     GEMINI_API_KEY_PRIMARY,
@@ -48,7 +50,6 @@ def _clean_json_response(raw_text: str) -> Dict[str, Any]:
         return json.loads(text)
     except json.JSONDecodeError as e:
         logger.warning(f"Failed to parse JSON directly from model output: {e}. Raw text:\n{raw_text}")
-        # Try to locate JSON object substring
         start_idx = text.find("{")
         end_idx = text.rfind("}")
         if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
@@ -59,43 +60,56 @@ def _clean_json_response(raw_text: str) -> Dict[str, Any]:
         return {"found": False, "error": "Invalid JSON response from model", "raw_response": raw_text}
 
 
+def _get_pdf_total_pages(pdf_path: str) -> int:
+    """
+    Helper to count total pages using PyMuPDF.
+    """
+    try:
+        doc = fitz.open(pdf_path)
+        count = len(doc)
+        doc.close()
+        return count
+    except Exception:
+        return 1
+
+
 def _call_gemini_with_genai_sdk(api_key: str, pdf_path: str, prompt: str) -> str:
     """
-    Calls Gemini API using official google-genai SDK.
+    Calls Gemini API using official google-genai SDK with File API upload to support 20+ page PDFs.
     """
     from google import genai
     from google.genai import types
 
     client = genai.Client(api_key=api_key)
     
-    # Read PDF bytes directly as Part
-    with open(pdf_path, "rb") as f:
-        pdf_bytes = f.read()
-
-    pdf_part = types.Part.from_bytes(
-        data=pdf_bytes,
-        mime_type="application/pdf"
-    )
+    # Upload PDF file via File API so full document (20+ pages) is available
+    file_ref = client.files.upload(file=pdf_path)
 
     last_error = None
-    # Try candidate models
-    for model_id in CANDIDATE_MODELS:
+    try:
+        for model_id in CANDIDATE_MODELS:
+            try:
+                config = types.GenerateContentConfig(
+                    temperature=TEMPERATURE,
+                    response_mime_type="application/json",
+                )
+                response = client.models.generate_content(
+                    model=model_id,
+                    contents=[file_ref, prompt],
+                    config=config,
+                )
+                if response and response.text:
+                    return response.text
+            except Exception as e:
+                last_error = e
+                logger.debug(f"Model {model_id} call failed: {e}")
+                continue
+    finally:
+        # Delete file reference after request completes
         try:
-            config = types.GenerateContentConfig(
-                temperature=TEMPERATURE,
-                response_mime_type="application/json",
-            )
-            response = client.models.generate_content(
-                model=model_id,
-                contents=[pdf_part, prompt],
-                config=config,
-            )
-            if response and response.text:
-                return response.text
-        except Exception as e:
-            last_error = e
-            logger.debug(f"Model {model_id} call failed with key: {e}")
-            continue
+            client.files.delete(name=file_ref.name)
+        except Exception:
+            pass
 
     if last_error:
         raise last_error
@@ -104,42 +118,36 @@ def _call_gemini_with_genai_sdk(api_key: str, pdf_path: str, prompt: str) -> str
 
 def _call_gemini_with_legacy_sdk(api_key: str, pdf_path: str, prompt: str) -> str:
     """
-    Fallback method using google-generativeai legacy SDK if google-genai fails.
+    Fallback method using google-generativeai legacy SDK.
     """
     import google.generativeai as genai_legacy
 
     genai_legacy.configure(api_key=api_key)
     
-    # Upload PDF file
     uploaded_file = genai_legacy.upload_file(pdf_path, mime_type="application/pdf")
     
     last_error = None
-    for model_id in CANDIDATE_MODELS:
-        try:
-            model = genai_legacy.GenerativeModel(
-                model_name=model_id,
-                generation_config={
-                    "temperature": TEMPERATURE,
-                    "response_mime_type": "application/json",
-                }
-            )
-            response = model.generate_content([uploaded_file, prompt])
-            if response and response.text:
-                # Cleanup uploaded file asynchronously / quietly
-                try:
-                    genai_legacy.delete_file(uploaded_file.name)
-                except Exception:
-                    pass
-                return response.text
-        except Exception as e:
-            last_error = e
-            continue
-
-    # Cleanup uploaded file
     try:
-        genai_legacy.delete_file(uploaded_file.name)
-    except Exception:
-        pass
+        for model_id in CANDIDATE_MODELS:
+            try:
+                model = genai_legacy.GenerativeModel(
+                    model_name=model_id,
+                    generation_config={
+                        "temperature": TEMPERATURE,
+                        "response_mime_type": "application/json",
+                    }
+                )
+                response = model.generate_content([uploaded_file, prompt])
+                if response and response.text:
+                    return response.text
+            except Exception as e:
+                last_error = e
+                continue
+    finally:
+        try:
+            genai_legacy.delete_file(uploaded_file.name)
+        except Exception:
+            pass
 
     if last_error:
         raise last_error
@@ -165,7 +173,7 @@ def _call_gemini_single_key(api_key: str, pdf_path: str, prompt: str) -> str:
 
 def locate_answer_in_pdf(pdf_path: str, question: str) -> Dict[str, Any]:
     """
-    Primary interface to locate answer in PDF using Gemini with transparent primary -> fallback key retry.
+    Primary interface to locate answer in PDF across ALL pages using Gemini with transparent primary -> fallback key retry.
 
     Args:
         pdf_path: Path to local PDF report file.
@@ -178,9 +186,12 @@ def locate_answer_in_pdf(pdf_path: str, question: str) -> Dict[str, Any]:
     if not pdf_file.exists():
         return {"found": False, "error": f"PDF file not found: {pdf_path}"}
 
-    prompt = build_prompt(question)
+    # Inspect total pages in PDF (e.g. 20 pages)
+    total_pages = _get_pdf_total_pages(str(pdf_file))
+    logger.info(f"Loaded PDF: {pdf_file.name} with {total_pages} total page(s). Building prompt for full document scanning...")
+
+    prompt = build_prompt(question, total_pages=total_pages)
     
-    # Key strategy: Primary Key -> Fallback Key retry
     primary_key = GEMINI_API_KEY_PRIMARY
     fallback_key = GEMINI_API_KEY_FALLBACK
 
@@ -222,4 +233,5 @@ def locate_answer_in_pdf(pdf_path: str, question: str) -> Dict[str, Any]:
 
     parsed = _clean_json_response(raw_response_text)
     parsed["api_key_used"] = used_key_type
+    parsed["total_pages_scanned"] = total_pages
     return parsed
