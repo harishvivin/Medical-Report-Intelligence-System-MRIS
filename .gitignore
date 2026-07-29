@@ -28,6 +28,8 @@ backend/uploads/
 backend/crops/
 !backend/uploads/.gitkeep
 !backend/crops/.gitkeep
+experimental_gemini_pipeline/crops/*
+!experimental_gemini_pipeline/crops/.gitkeep
 
 # Node / React
 node_modules/
