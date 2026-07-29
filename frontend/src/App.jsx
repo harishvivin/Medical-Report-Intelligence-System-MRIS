@@ -4,11 +4,12 @@ import FileUpload from './components/FileUpload';
 import QaSection from './components/QaSection';
 import SummaryView from './components/SummaryView';
 import CropPreviewModal from './components/CropPreviewModal';
-import { MessageSquare, FileText, ArrowLeft, FileCheck, Sparkles, ShieldCheck, Zap } from 'lucide-react';
+import { MessageSquare, FileText, ArrowLeft, FileCheck, Sparkles } from 'lucide-react';
 
 export default function App() {
   const [activeDoc, setActiveDoc] = useState(null);
   const [page, setPage] = useState(1); // 1 = Main Upload Page, 2 = Q&A Workspace Page
+  const [transitionDir, setTransitionDir] = useState('right'); // 'right' or 'left'
   const [activeTab, setActiveTab] = useState('qa'); // 'qa' or 'summary'
   const [cropModalData, setCropModalData] = useState(null);
   const [theme, setTheme] = useState(() => {
@@ -31,10 +32,12 @@ export default function App() {
   const handleUploadSuccess = (data) => {
     setActiveDoc(data);
     setActiveTab('qa');
+    setTransitionDir('right');
     setPage(2); // Smoothly transition to Page 2 (Q&A Workspace)
   };
 
   const handleBackToUpload = () => {
+    setTransitionDir('left');
     setPage(1); // Return to Page 1 (Main Upload Page)
   };
 
@@ -59,13 +62,13 @@ export default function App() {
       />
 
       {/* Main Content Area */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-8 relative z-10">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-8 relative z-10 overflow-x-hidden">
         
         {/* ==================== PAGE 1: MAIN UPLOAD PAGE ==================== */}
         {page === 1 && (
-          <div className="space-y-8 animate-page-enter">
+          <div className={`space-y-8 ${transitionDir === 'left' ? 'animate-slide-left-in' : 'animate-slide-right-in'}`}>
             {/* Hero Banner */}
-            <div className="text-center max-w-2xl mx-auto space-y-3 py-4">
+            <div className="text-center max-w-2xl mx-auto space-y-3 py-6">
               <span className="px-3.5 py-1 rounded-full bg-sky-500/10 border border-sky-500/30 text-sky-600 dark:text-sky-400 text-xs font-bold uppercase tracking-wider inline-flex items-center gap-1.5 shadow-sm">
                 <Sparkles className="w-3.5 h-3.5" /> AI Medical Report Intelligence
               </span>
@@ -73,56 +76,23 @@ export default function App() {
                 Upload Medical Report PDF
               </h2>
               <p className="text-sm text-slate-600 dark:text-slate-400 font-medium leading-relaxed">
-                Extract precise medical answers, abnormal lab test flags, and visual screenshot snippets across all document pages automatically.
+                Upload your medical report PDF to start natural language extraction and exact screenshot snippet localization.
               </p>
             </div>
 
-            {/* Upload Box */}
+            {/* Upload Box Container */}
             <div className="max-w-3xl mx-auto">
               <FileUpload
                 activeDoc={activeDoc}
                 onUploadSuccess={handleUploadSuccess}
               />
             </div>
-
-            {/* Feature Cards Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto pt-4">
-              <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border-2 border-slate-300 dark:border-slate-800 shadow-md space-y-2">
-                <div className="w-9 h-9 rounded-xl bg-sky-500/10 text-sky-600 dark:text-sky-400 flex items-center justify-center font-bold">
-                  <Zap className="w-5 h-5" />
-                </div>
-                <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Full 20+ Page Scanning</h3>
-                <p className="text-xs text-slate-600 dark:text-slate-400">
-                  Scans every single page from Page 1 to end without early stopping or text truncation.
-                </p>
-              </div>
-
-              <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border-2 border-slate-300 dark:border-slate-800 shadow-md space-y-2">
-                <div className="w-9 h-9 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold">
-                  <ShieldCheck className="w-5 h-5" />
-                </div>
-                <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Exact Visual Crops</h3>
-                <p className="text-xs text-slate-600 dark:text-slate-400">
-                  PyMuPDF coordinate cropper renders high-res PNG screenshots with green highlight boxes.
-                </p>
-              </div>
-
-              <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border-2 border-slate-300 dark:border-slate-800 shadow-md space-y-2">
-                <div className="w-9 h-9 rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold">
-                  <FileCheck className="w-5 h-5" />
-                </div>
-                <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Structured Summary</h3>
-                <p className="text-xs text-slate-600 dark:text-slate-400">
-                  Generates instant patient summary, abnormal value alerts, and lab panel tables.
-                </p>
-              </div>
-            </div>
           </div>
         )}
 
         {/* ==================== PAGE 2: Q&A WORKSPACE PAGE ==================== */}
         {page === 2 && activeDoc && (
-          <div className="space-y-6 animate-page-enter">
+          <div className={`space-y-6 ${transitionDir === 'right' ? 'animate-slide-right-in' : 'animate-slide-left-in'}`}>
             
             {/* Top Workspace Navigation Bar */}
             <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border-2 border-slate-300 dark:border-slate-800 shadow-lg flex flex-wrap items-center justify-between gap-4">

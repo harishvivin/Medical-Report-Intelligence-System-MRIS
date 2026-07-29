@@ -48,29 +48,35 @@
   }
 }
 
-/* Page Transition Keyframe Animations */
-@keyframes page-enter {
+/* Cinematic Page Slide & Fade Animations */
+@keyframes slide-right-in {
   0% {
     opacity: 0;
-    transform: translateY(24px) scale(0.985);
+    transform: translateX(48px) scale(0.975);
   }
   100% {
     opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: translateX(0) scale(1);
   }
 }
 
-.animate-page-enter {
-  animation: page-enter 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+.animate-slide-right-in {
+  animation: slide-right-in 0.55s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
-@keyframes fade-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
+@keyframes slide-left-in {
+  0% {
+    opacity: 0;
+    transform: translateX(-48px) scale(0.975);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
 }
 
-.animate-fade-in {
-  animation: fade-in 0.35s ease-out forwards;
+.animate-slide-left-in {
+  animation: slide-left-in 0.55s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 /* Custom Scrollbar */
