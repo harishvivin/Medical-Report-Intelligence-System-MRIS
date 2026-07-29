@@ -125,9 +125,9 @@ class QAEngine:
             try:
                 exp_res = locate_answer_in_pdf(self.pdf_path, question)
                 if exp_res and exp_res.get("found"):
-                    page_num = exp_res.get("page", 1)
+                    page_num = exp_res.get("page_number", exp_res.get("page", 1))
                     page_idx = max(0, page_num - 1)
-                    raw_bbox = exp_res.get("bounding_box", {})
+                    raw_bbox = exp_res.get("box_2d", exp_res.get("bounding_box", {}))
 
                     doc = fitz.open(self.pdf_path)
                     p_idx = min(page_idx, len(doc) - 1)
@@ -135,18 +135,29 @@ class QAEngine:
                     w, h = page_rect.width, page_rect.height
                     doc.close()
 
-                    x1 = float(raw_bbox.get("x1", 0))
-                    y1 = float(raw_bbox.get("y1", 0))
-                    x2 = float(raw_bbox.get("x2", 1))
-                    y2 = float(raw_bbox.get("y2", 1))
-
-                    max_val = max(abs(x1), abs(y1), abs(x2), abs(y2))
-                    if max_val <= 1.0 and max_val > 0:
-                        px0, py0, px1, py1 = x1 * w, y1 * h, x2 * w, y2 * h
-                    elif max_val <= 1000.0:
-                        px0, py0, px1, py1 = (x1 / 1000.0) * w, (y1 / 1000.0) * h, (x2 / 1000.0) * w, (y2 / 1000.0) * h
+                    if isinstance(raw_bbox, (list, tuple)) and len(raw_bbox) == 4:
+                        ymin, xmin, ymax, xmax = [float(v) for v in raw_bbox]
+                        max_val = max(abs(ymin), abs(xmin), abs(ymax), abs(xmax))
+                        if max_val <= 1.0 and max_val > 0:
+                            px0, py0, px1, py1 = xmin * w, ymin * h, xmax * w, ymax * h
+                        elif max_val <= 1000.0:
+                            px0, py0, px1, py1 = (xmin / 1000.0) * w, (ymin / 1000.0) * h, (xmax / 1000.0) * w, (ymax / 1000.0) * h
+                        else:
+                            px0, py0, px1, py1 = xmin, ymin, xmax, ymax
+                    elif isinstance(raw_bbox, dict):
+                        x1 = float(raw_bbox.get("x1", raw_bbox.get("xmin", 0)))
+                        y1 = float(raw_bbox.get("y1", raw_bbox.get("ymin", 0)))
+                        x2 = float(raw_bbox.get("x2", raw_bbox.get("xmax", 1000)))
+                        y2 = float(raw_bbox.get("y2", raw_bbox.get("ymax", 1000)))
+                        max_val = max(abs(x1), abs(y1), abs(x2), abs(y2))
+                        if max_val <= 1.0 and max_val > 0:
+                            px0, py0, px1, py1 = x1 * w, y1 * h, x2 * w, y2 * h
+                        elif max_val <= 1000.0:
+                            px0, py0, px1, py1 = (x1 / 1000.0) * w, (y1 / 1000.0) * h, (x2 / 1000.0) * w, (y2 / 1000.0) * h
+                        else:
+                            px0, py0, px1, py1 = x1, y1, x2, y2
                     else:
-                        px0, py0, px1, py1 = x1, y1, x2, y2
+                        px0, py0, px1, py1 = 0, 0, w, h
 
                     pt_bbox = [round(px0, 2), round(py0, 2), round(px1, 2), round(py1, 2)]
 

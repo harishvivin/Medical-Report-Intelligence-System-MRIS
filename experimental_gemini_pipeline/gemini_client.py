@@ -1,7 +1,7 @@
 """
 Gemini API Client Module for Experimental Gemini Pipeline.
 Supports dual API Key failover (GEMINI_API_KEY_PRIMARY -> GEMINI_API_KEY_FALLBACK).
-Extracts visual location of requested answers across all pages of a PDF using Flash-Lite models.
+Extracts spatial visual bounding box coordinates (box_2d: [ymin, xmin, ymax, xmax]) across all PDF pages.
 """
 
 import json
@@ -19,19 +19,17 @@ from .config import (
     FALLBACK_MODEL_NAME,
     TEMPERATURE,
 )
-from .prompt_builder import build_prompt
+from .prompt_builder import build_spatial_prompt
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("experimental_gemini_client")
 
-# Candidate model list starting with gemini-3.1-flash-lite
 CANDIDATE_MODELS = [
     MODEL_NAME,
     "gemini-3.1-flash-lite",
     FALLBACK_MODEL_NAME,
     "gemini-2.5-flash-lite",
     "gemini-2.0-flash-lite",
-    "gemini-1.5-flash-8b",
     "gemini-1.5-flash",
 ]
 
@@ -42,29 +40,47 @@ def _clean_json_response(raw_text: str) -> Dict[str, Any]:
     """
     text = raw_text.strip()
     
-    # Strip markdown code blocks ```json ... ``` or ``` ... ```
     match = re.search(r"```(?:json)?\s*([\s\S]*?)\s*```", text, re.IGNORECASE)
     if match:
         text = match.group(1).strip()
 
     try:
-        return json.loads(text)
+        data = json.loads(text)
     except json.JSONDecodeError as e:
         logger.warning(f"Failed to parse JSON directly from model output: {e}. Raw text:\n{raw_text}")
         start_idx = text.find("{")
         end_idx = text.rfind("}")
         if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
             try:
-                return json.loads(text[start_idx : end_idx + 1])
+                data = json.loads(text[start_idx : end_idx + 1])
             except Exception:
-                pass
-        return {"found": False, "error": "Invalid JSON response from model", "raw_response": raw_text}
+                return {"found": False, "error": "Invalid JSON response from model", "raw_response": raw_text}
+        else:
+            return {"found": False, "error": "Invalid JSON response from model", "raw_response": raw_text}
+
+    # Normalize response format for box_2d and page_number
+    page_num = data.get("page_number", data.get("page", 1))
+    box_2d = data.get("box_2d", data.get("bounding_box"))
+    label = data.get("label", data.get("answer", data.get("matched_text", "")))
+    confidence = data.get("confidence", 0.99)
+
+    is_found = True if (box_2d or data.get("found", True)) and not data.get("found") is False else False
+
+    return {
+        "found": is_found,
+        "page_number": page_num,
+        "page": page_num,
+        "box_2d": box_2d,
+        "bounding_box": box_2d,
+        "label": label,
+        "answer": label,
+        "matched_text": label,
+        "confidence": confidence,
+        "raw_json": data
+    }
 
 
 def _get_pdf_total_pages(pdf_path: str) -> int:
-    """
-    Helper to count total pages using PyMuPDF.
-    """
     try:
         doc = fitz.open(pdf_path)
         count = len(doc)
@@ -75,15 +91,10 @@ def _get_pdf_total_pages(pdf_path: str) -> int:
 
 
 def _call_gemini_with_genai_sdk(api_key: str, pdf_path: str, prompt: str) -> str:
-    """
-    Calls Gemini API using official google-genai SDK with File API upload.
-    """
     from google import genai
     from google.genai import types
 
     client = genai.Client(api_key=api_key)
-    
-    # Upload PDF file via File API so full document is available
     file_ref = client.files.upload(file=pdf_path)
 
     last_error = None
@@ -106,7 +117,6 @@ def _call_gemini_with_genai_sdk(api_key: str, pdf_path: str, prompt: str) -> str
                 logger.debug(f"Model {model_id} call failed: {e}")
                 continue
     finally:
-        # Delete file reference after request completes
         try:
             client.files.delete(name=file_ref.name)
         except Exception:
@@ -118,13 +128,9 @@ def _call_gemini_with_genai_sdk(api_key: str, pdf_path: str, prompt: str) -> str
 
 
 def _call_gemini_with_legacy_sdk(api_key: str, pdf_path: str, prompt: str) -> str:
-    """
-    Fallback method using google-generativeai legacy SDK.
-    """
     import google.generativeai as genai_legacy
 
     genai_legacy.configure(api_key=api_key)
-    
     uploaded_file = genai_legacy.upload_file(pdf_path, mime_type="application/pdf")
     
     last_error = None
@@ -156,9 +162,6 @@ def _call_gemini_with_legacy_sdk(api_key: str, pdf_path: str, prompt: str) -> st
 
 
 def _call_gemini_single_key(api_key: str, pdf_path: str, prompt: str) -> str:
-    """
-    Performs API call with a single key, trying modern SDK then legacy SDK.
-    """
     if not api_key:
         raise ValueError("API key is empty")
 
@@ -173,24 +176,14 @@ def _call_gemini_single_key(api_key: str, pdf_path: str, prompt: str) -> str:
 
 
 def locate_answer_in_pdf(pdf_path: str, question: str) -> Dict[str, Any]:
-    """
-    Primary interface to locate answer in PDF across ALL pages using Gemini with transparent primary -> fallback key retry.
-
-    Args:
-        pdf_path: Path to local PDF report file.
-        question: User query string.
-
-    Returns:
-        Structured JSON dictionary with visual localization details.
-    """
     pdf_file = Path(pdf_path)
     if not pdf_file.exists():
         return {"found": False, "error": f"PDF file not found: {pdf_path}"}
 
     total_pages = _get_pdf_total_pages(str(pdf_file))
-    logger.info(f"Loaded PDF: {pdf_file.name} ({total_pages} pages). Building inline prompt for Gemini...")
+    logger.info(f"Loaded PDF: {pdf_file.name} ({total_pages} pages). Building spatial prompt...")
 
-    prompt = build_prompt(question, total_pages=total_pages)
+    prompt = build_spatial_prompt(question)
     
     primary_key = GEMINI_API_KEY_PRIMARY
     fallback_key = GEMINI_API_KEY_FALLBACK

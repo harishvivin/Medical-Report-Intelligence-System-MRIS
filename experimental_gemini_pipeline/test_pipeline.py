@@ -60,9 +60,9 @@ class TestExperimentalGeminiPipeline(unittest.TestCase):
         question = "What is the Hemoglobin level?"
         prompt = build_prompt(question)
         self.assertIn(question, prompt)
-        self.assertIn("Return ONLY valid JSON.", prompt)
-        self.assertIn("bounding_box", prompt)
-        self.assertIn("Do not hallucinate.", prompt)
+        self.assertIn("box_2d", prompt)
+        self.assertIn("page_number", prompt)
+        self.assertIn("Scan the document and locate the answer.", prompt)
 
     def test_02_coordinate_cropper_pymupdf(self):
         """Verify PyMuPDF coordinate cropper creates a valid PNG file from coordinates."""
