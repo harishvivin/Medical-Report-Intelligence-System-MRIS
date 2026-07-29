@@ -78,37 +78,41 @@ class GeminiClient:
         full_context_str = "\n".join(formatted_pages)
 
         system_prompt = (
-            "You are an expert medical document intelligence system.\n"
+            "You are an expert visual document layout analyzer and medical document intelligence system.\n"
             "Analyze the provided COMPLETE PAGE TEXTS AND/OR PAGE IMAGES and answer the user's question accurately.\n\n"
             "STRICT RULES:\n"
             "1. Base your answer strictly on the supplied page text or images (including tables, handwritten doctor notes, and ECG strips). Do NOT invent or hallucinate data.\n"
             "2. Understand all medical lab test categories (Basic Info, CBC, Kidney Function, Diabetes, Liver Function, Lipid Profile, Serology/Infectious Disease, Urine Analysis, ECG, Summaries).\n"
-            "3. If the user asks about specific test values, metadata (e.g. Patient Name, Age, Gender, Hospital, Application Number, MER Number, HSP Code, Service Type), or diagnostic findings:\n"
+            "3. Identify the exact spatial bounding box of the region containing the answer on a 0 to 1000 normalized scale:\n"
+            "   - ymin: Top edge (0 = top of page, 1000 = bottom of page)\n"
+            "   - xmin: Left edge (0 = left of page, 1000 = right of page)\n"
+            "   - ymax: Bottom edge (0 = top of page, 1000 = bottom of page)\n"
+            "   - xmax: Right edge (0 = left of page, 1000 = right of page)\n"
+            "4. If the user asks about specific test values, metadata (e.g. Patient Name, Age, Gender, Hospital, Application Number, MER Number, HSP Code, Service Type), or diagnostic findings:\n"
             "   - 'found': true\n"
             "   - 'answer': Concise and clear answer string with value, units, or clinical status.\n"
-            "   - 'matched_line': Extract the EXACT complete row/line containing the target answer (e.g. 'Hemoglobin : 13.8 g/dL (Reference Range: 13.5 - 17.5 g/dL)'). "
-            "Never paraphrase, never shorten, and never modify punctuation.\n"
-            "   - 'page': Integer page number where the line was found.\n"
+            "   - 'matched_line': Extract the EXACT complete row/line containing the target answer (e.g. 'Hemoglobin : 13.8 g/dL (Reference Range: 13.5 - 17.5 g/dL)'). Never paraphrase, never shorten, and never modify punctuation.\n"
+            "   - 'page': 1-based integer page number where the information is located.\n"
             "   - 'confidence': Float confidence score between 0.0 and 1.0 (e.g. 0.99).\n"
-            "4. If the user asks for a general summary, abnormal values overview, or report interpretation:\n"
-            "   - 'found': true\n"
-            "   - 'answer': Detailed, comprehensive overview listing patient status, key findings, and abnormal parameters.\n"
-            "   - 'matched_line': Exact representative row from the text or image.\n"
-            "   - 'page': Integer page number.\n"
-            "   - 'confidence': 0.99\n"
+            "   - 'ymin', 'xmin', 'ymax', 'xmax': Integers (0 to 1000) bounding the exact answer region tightly.\n"
             "5. If the requested parameter or test is NOT present anywhere in the supplied text or images, return:\n"
             "   'found': false,\n"
             "   'answer': 'The uploaded report does not contain this information.',\n"
             "   'matched_line': null,\n"
             "   'page': null,\n"
-            "   'confidence': 0.0.\n\n"
+            "   'confidence': 0.0,\n"
+            "   'ymin': null, 'xmin': null, 'ymax': null, 'xmax': null.\n\n"
             "RETURN ONLY A VALID JSON OBJECT using this exact schema:\n"
             "{\n"
             '  "found": true,\n'
             '  "answer": "13.8 g/dL",\n'
             '  "matched_line": "Hemoglobin : 13.8 g/dL",\n'
             '  "page": 1,\n'
-            '  "confidence": 0.99\n'
+            '  "confidence": 0.99,\n'
+            '  "ymin": 160,\n'
+            '  "xmin": 50,\n'
+            '  "ymax": 200,\n'
+            '  "xmax": 950\n'
             "}"
         )
 
@@ -131,7 +135,11 @@ class GeminiClient:
                     "matched_line": matched_line,
                     "matched_text": matched_line,
                     "page": parsed.get("page"),
-                    "confidence": float(parsed.get("confidence", 0.98))
+                    "confidence": float(parsed.get("confidence", 0.98)),
+                    "ymin": parsed.get("ymin"),
+                    "xmin": parsed.get("xmin"),
+                    "ymax": parsed.get("ymax"),
+                    "xmax": parsed.get("xmax")
                 }
         except Exception as e:
             logger.error(f"Error parsing Gemini response JSON: {e}. Raw response: {raw_response[:200]}")

@@ -140,12 +140,32 @@ class QAEngine:
                     # Map Gemini matched_line or answer back to physical PyMuPDF parent_row_bbox
                     target_page, page_idx, bbox = self._find_bbox_for_matched_line(matched_line, page_num, gemini_res.get("answer"))
 
+                    # If Gemini provided normalized 0-1000 spatial coordinates, compute gemini_bbox
+                    gemini_bbox = None
+                    if all(gemini_res.get(k) is not None for k in ["ymin", "xmin", "ymax", "xmax"]) and (target_page or page_num):
+                        try:
+                            doc = fitz.open(self.pdf_path)
+                            p_idx = (target_page or page_num) - 1
+                            if 0 <= p_idx < len(doc):
+                                rect = doc[p_idx].rect
+                                w, h = rect.width, rect.height
+                                ymin_pt = round((gemini_res["ymin"] / 1000.0) * h, 2)
+                                xmin_pt = round((gemini_res["xmin"] / 1000.0) * w, 2)
+                                ymax_pt = round((gemini_res["ymax"] / 1000.0) * h, 2)
+                                xmax_pt = round((gemini_res["xmax"] / 1000.0) * w, 2)
+                                gemini_bbox = [xmin_pt, ymin_pt, xmax_pt, ymax_pt]
+                            doc.close()
+                        except Exception as err:
+                            logger.debug(f"Error computing Gemini 0-1000 spatial bbox: {err}")
+
+                    final_bbox = bbox or gemini_bbox
+
                     matched_data = {
                         "answer": gemini_res["answer"],
                         "page_number": target_page or page_num or 1,
-                        "page_index": page_idx or 0,
+                        "page_index": page_idx if page_idx is not None else ((page_num - 1) if page_num else 0),
                         "confidence": gemini_res.get("confidence", 0.98),
-                        "bounding_box": bbox
+                        "bounding_box": final_bbox
                     }
                     logger.info(f"Gemini API answered question successfully with confidence {matched_data['confidence']}")
                     return self._build_response(question, matched_data)
