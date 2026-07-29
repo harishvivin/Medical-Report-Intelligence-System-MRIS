@@ -37,22 +37,28 @@ CRITICAL RULES FOR ACCURACY & PAGE SELECTION:
    - Different questions are answered on different pages (e.g. Vitals on Page 1, Blood Count on Page 2, Diabetes/Kidney tests on Page 3, ECG/Serology on Page 4).
    - Find the SPECIFIC 1-based page number (between 1 and {total_str}) where the answer to THIS specific question is printed. Do NOT default to page 1 or page 4!
 
-2. LAB TEST & PARAMETER ACCURACY:
-   - If the question asks for a lab result or test parameter (e.g., "HbA1c", "Fasting Blood Sugar", "Creatinine", "Hemoglobin", "Blood Pressure"):
-     - Locate the specific row in the laboratory/vitals report table for that exact test name.
-     - Extract the actual numerical value and unit (e.g. "5.1 %", "112.12 mg/dL", "0.88 mg/dL", "125/81 mmHg").
-     - NEVER confuse lab values with clinical complaints, patient history, or symptoms (e.g. NEVER return "having chest pains" for a lab value question like HbA1c/Sugar).
+2. MEDICAL TERMINOLOGY & SYNONYM MATCHING:
+   - Understand medical synonyms and common query phrasing:
+     - "ecg recording", "ecg report", "ecg result", "ecg graph", "ecg trace", "electrocardiogram" -> match "ECG Impression", "Cardiology Examination", "12-Lead ECG", or the ECG report findings/graph on whichever page it appears.
+     - "blood sugar", "fasting blood sugar", "fbs", "rbs", "hba1c" -> match "HbA1c", "GLYCATED HAEMOGLOBIN", "RANDOM BLOOD SUGAR", or "FASTING BLOOD SUGAR".
+     - "blood pressure", "bp" -> match "Blood Pressure" / "BP".
 
-3. REPORT FINDINGS vs ORDER LISTS:
+3. LAB TEST & PARAMETER ACCURACY:
+   - If the question asks for a lab result or test parameter (e.g., "HbA1c", "Fasting Blood Sugar", "Creatinine", "Hemoglobin", "Blood Pressure", "ECG"):
+     - Locate the specific row or section in the laboratory/cardiology report for that exact test name.
+     - Extract the actual numerical value/finding (e.g. "5.1 %", "112.12 mg/dL", "0.88 mg/dL", "125/81 mmHg", "ECG within normal limits").
+     - NEVER confuse lab/test values with clinical complaints, patient history, or symptoms (e.g. NEVER return "having chest pains" for a test question).
+
+4. REPORT FINDINGS vs ORDER LISTS:
    - Locate the actual diagnostic FINDINGS, IMPRESSION, or REPORT RESULT.
-   - Do NOT match generic order lists or test package names.
+   - Do NOT match generic order lists or test package names (e.g. do not match 'ECG-R' in a list of ordered tests).
 
 Return ONLY valid JSON.
 
 Schema:
 {{
     "found": true,
-    "answer": "Exact numerical value/result string (e.g. '5.1 %', '0.88 mg/dL', '125/81 mmHg')",
+    "answer": "Exact numerical value/result string (e.g. '5.1 %', '0.88 mg/dL', 'ECG within normal limits')",
     "page": 1,
     "bounding_box": {{
         "x1": 0.23,
