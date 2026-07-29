@@ -1,12 +1,16 @@
 import os
 import json
+from pathlib import Path
 from typing import List, Optional
 from pydantic import BaseModel, Field
 from google import genai
 from google.genai import types
 from dotenv import load_dotenv
 
-load_dotenv()
+# Load .env from project root (two levels up from this file)
+_ENV_PATH = Path(__file__).resolve().parent.parent / ".env"
+load_dotenv(dotenv_path=_ENV_PATH, encoding="utf-8-sig", override=True)
+
 
 # Schema aligned with Gemini's native visual grounding box_2d
 class GroundingBox(BaseModel):
@@ -37,13 +41,13 @@ class GeminiClientManager:
         prompt = self._build_prompt(user_question)
 
         try:
-            print("🟢 Attempting visual grounding with Primary API Key...")
+            print("[PRIMARY] Attempting visual grounding with Primary API Key...")
             client = self._get_client(self.primary_key)
             return self._call_gemini(client, pdf_path, prompt)
         except Exception as e:
-            print(f"⚠️ Primary API Key failed: {e}")
+            print(f"[WARN] Primary API Key failed: {e}")
             if self.fallback_key and self.fallback_key != self.primary_key:
-                print("🔄 Switching to Fallback API Key...")
+                print("[FALLBACK] Switching to Fallback API Key...")
                 client = self._get_client(self.fallback_key)
                 return self._call_gemini(client, pdf_path, prompt)
             else:
@@ -59,7 +63,7 @@ class GeminiClientManager:
         try:
             # Call Gemini with structured output enforcement
             response = client.models.generate_content(
-                model="gemini-2.5-flash",
+                model="gemini-3.1-flash-lite",
                 contents=[uploaded_file, prompt],
                 config=types.GenerateContentConfig(
                     response_mime_type="application/json",
