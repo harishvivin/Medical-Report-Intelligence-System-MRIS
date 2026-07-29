@@ -1,7 +1,7 @@
 """
 Gemini API Client Module for Experimental Gemini Pipeline.
 Supports dual API Key failover (GEMINI_API_KEY_PRIMARY -> GEMINI_API_KEY_FALLBACK).
-Extracts visual location of requested answers across all pages of a PDF using Flash-Lite model.
+Extracts visual location of requested answers across all pages of a PDF using Flash-Lite models.
 """
 
 import json
@@ -24,9 +24,10 @@ from .prompt_builder import build_prompt
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("experimental_gemini_client")
 
-# Candidate model list to ensure model availability
+# Candidate model list starting with gemini-3.1-flash-lite
 CANDIDATE_MODELS = [
     MODEL_NAME,
+    "gemini-3.1-flash-lite",
     FALLBACK_MODEL_NAME,
     "gemini-2.5-flash-lite",
     "gemini-2.0-flash-lite",
@@ -75,14 +76,14 @@ def _get_pdf_total_pages(pdf_path: str) -> int:
 
 def _call_gemini_with_genai_sdk(api_key: str, pdf_path: str, prompt: str) -> str:
     """
-    Calls Gemini API using official google-genai SDK with File API upload to support 20+ page PDFs.
+    Calls Gemini API using official google-genai SDK with File API upload.
     """
     from google import genai
     from google.genai import types
 
     client = genai.Client(api_key=api_key)
     
-    # Upload PDF file via File API so full document (20+ pages) is available
+    # Upload PDF file via File API so full document is available
     file_ref = client.files.upload(file=pdf_path)
 
     last_error = None
@@ -186,9 +187,8 @@ def locate_answer_in_pdf(pdf_path: str, question: str) -> Dict[str, Any]:
     if not pdf_file.exists():
         return {"found": False, "error": f"PDF file not found: {pdf_path}"}
 
-    # Inspect total pages in PDF (e.g. 20 pages)
     total_pages = _get_pdf_total_pages(str(pdf_file))
-    logger.info(f"Loaded PDF: {pdf_file.name} with {total_pages} total page(s). Building prompt for full document scanning...")
+    logger.info(f"Loaded PDF: {pdf_file.name} ({total_pages} pages). Building inline prompt for Gemini...")
 
     prompt = build_prompt(question, total_pages=total_pages)
     
@@ -204,7 +204,7 @@ def locate_answer_in_pdf(pdf_path: str, question: str) -> Dict[str, Any]:
             logger.info("Attempting Gemini API call with PRIMARY key...")
             raw_response_text = _call_gemini_single_key(primary_key, str(pdf_file), prompt)
         except Exception as e:
-            logger.warning(f"PRIMARY API Key encounter exception ({type(e).__name__}: {e}). Retrying transparently with FALLBACK key...")
+            logger.warning(f"PRIMARY API Key encountered exception ({type(e).__name__}: {e}). Retrying transparently with FALLBACK key...")
             raw_response_text = None
 
     # Attempt 2: Fallback API Key (Transparent failover)

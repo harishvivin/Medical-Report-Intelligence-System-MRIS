@@ -1,11 +1,11 @@
 """
 Prompt Builder Module for Experimental Gemini Pipeline.
-Generates prompts for visual PDF localization across all pages using Python f-strings.
+Generates inline prompts for visual PDF localization using Python f-strings.
 """
 
 def build_prompt(question: str, total_pages: int = None) -> str:
     """
-    Build a prompt using Python f-strings instructing Gemini to locate the answer across ALL pages of the PDF.
+    Build a prompt using Python f-strings instructing Gemini to locate the answer coordinates in the PDF.
     
     Args:
         question: The user's query/question to locate in the PDF.
@@ -22,25 +22,20 @@ def build_prompt(question: str, total_pages: int = None) -> str:
     
     total_str = str(total_pages) if total_pages else "N"
 
-    return f"""You are an expert multi-page PDF localization system.
+    return f"""You are an expert PDF visual localization system.
 
-Analyze ONLY the uploaded PDF.
+Analyze ONLY the uploaded PDF document.
 
 {page_context}
+
+Task: Give me the coordinates for this particular question in the PDF which answers this:
+{question}
 
 CRITICAL MULTI-PAGE SCANNING INSTRUCTIONS:
 - You MUST scan, inspect, and evaluate EVERY SINGLE PAGE in the document from Page 1 through Page {total_str}.
 - Do NOT stop analyzing after page 4 or any early page!
 - The answer to the question may be located on ANY page (from Page 1 to Page {total_str}).
-- Search all {total_str} pages thoroughly before deciding on the final answer location.
-
-The user's question is:
-
-{question}
-
-Your task is NOT to summarize.
-Your task is NOT to explain.
-Your task is ONLY to locate the exact portion of the PDF that answers this question.
+- Your ONLY job is to identify the exact page and bounding box coordinates of the portion of the page in that PDF that answers "{question}".
 
 Return ONLY valid JSON.
 

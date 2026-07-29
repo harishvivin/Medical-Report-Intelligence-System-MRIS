@@ -15,9 +15,9 @@ GEMINI_API_KEY_PRIMARY = os.getenv("GEMINI_API_KEY_PRIMARY", os.getenv("GEMINI_A
 GEMINI_API_KEY_FALLBACK = os.getenv("GEMINI_API_KEY_FALLBACK", os.getenv("GEMINI_API_KEY_PRIMARY", os.getenv("GEMINI_API_KEY", "")))
 
 # Model Settings
-# Use Flash-Lite model as requested
-MODEL_NAME = os.getenv("GEMINI_MODEL", "gemini-2.5-flash-lite")
-FALLBACK_MODEL_NAME = os.getenv("GEMINI_FALLBACK_MODEL", "gemini-2.0-flash-lite")
+# Use gemini-3.1-flash-lite as requested
+MODEL_NAME = os.getenv("GEMINI_MODEL", "gemini-3.1-flash-lite")
+FALLBACK_MODEL_NAME = os.getenv("GEMINI_FALLBACK_MODEL", "gemini-2.5-flash-lite")
 
 TEMPERATURE = 0.0
 
