@@ -9,7 +9,20 @@ from config import MIN_CONFIDENCE_SCORE
 from logger import logger
 
 import os
+import sys
 import fitz
+from pathlib import Path
+
+# Ensure project root is accessible for experimental pipeline import
+BASE_PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+if str(BASE_PROJECT_ROOT) not in sys.path:
+    sys.path.append(str(BASE_PROJECT_ROOT))
+
+try:
+    from experimental_gemini_pipeline.gemini_client import locate_answer_in_pdf
+except ImportError:
+    locate_answer_in_pdf = None
+
 from gemini_client import GeminiClient
 
 NOT_FOUND_MESSAGE = "The uploaded report does not contain this information."
@@ -107,7 +120,59 @@ class QAEngine:
         parsed_q = QuestionParser.parse(question)
         logger.info(f"Parsed question intent: {parsed_q['intent']}, target entities: {parsed_q['target_entities']}")
 
-        # Primary Engine: Google Gemini API (Multimodal Text & Vision)
+        # Tier 0 Primary Engine: Experimental Gemini Multimodal Pipeline
+        if locate_answer_in_pdf:
+            try:
+                exp_res = locate_answer_in_pdf(self.pdf_path, question)
+                if exp_res and exp_res.get("found"):
+                    page_num = exp_res.get("page", 1)
+                    page_idx = max(0, page_num - 1)
+                    raw_bbox = exp_res.get("bounding_box", {})
+
+                    doc = fitz.open(self.pdf_path)
+                    p_idx = min(page_idx, len(doc) - 1)
+                    page_rect = doc[p_idx].rect
+                    w, h = page_rect.width, page_rect.height
+                    doc.close()
+
+                    x1 = float(raw_bbox.get("x1", 0))
+                    y1 = float(raw_bbox.get("y1", 0))
+                    x2 = float(raw_bbox.get("x2", 1))
+                    y2 = float(raw_bbox.get("y2", 1))
+
+                    max_val = max(abs(x1), abs(y1), abs(x2), abs(y2))
+                    if max_val <= 1.0 and max_val > 0:
+                        px0, py0, px1, py1 = x1 * w, y1 * h, x2 * w, y2 * h
+                    elif max_val <= 1000.0:
+                        px0, py0, px1, py1 = (x1 / 1000.0) * w, (y1 / 1000.0) * h, (x2 / 1000.0) * w, (y2 / 1000.0) * h
+                    else:
+                        px0, py0, px1, py1 = x1, y1, x2, y2
+
+                    pt_bbox = [round(px0, 2), round(py0, 2), round(px1, 2), round(py1, 2)]
+
+                    matched_data = {
+                        "answer": exp_res.get("answer") or exp_res.get("matched_text"),
+                        "page_number": p_idx + 1,
+                        "page_index": p_idx,
+                        "confidence": exp_res.get("confidence", 0.99),
+                        "bounding_box": pt_bbox
+                    }
+                    logger.info(f"Experimental Gemini Pipeline answered question successfully with confidence {matched_data['confidence']}")
+                    return self._build_response(question, matched_data)
+                elif exp_res and exp_res.get("found") is False and "error" not in exp_res:
+                    logger.info("Experimental Gemini Pipeline determined info is NOT in report.")
+                    return {
+                        "question": question,
+                        "answer": NOT_FOUND_MESSAGE,
+                        "page_number": None,
+                        "confidence": 0.0,
+                        "snippet_url": None,
+                        "bounding_box": None
+                    }
+            except Exception as exp_err:
+                logger.warning(f"Experimental Gemini Pipeline fallback: {exp_err}")
+
+        # Secondary Engine: Google Gemini API (Multimodal Text & Vision)
         if self.gemini_client.is_available():
             try:
                 # Retrieve top candidate PAGES
