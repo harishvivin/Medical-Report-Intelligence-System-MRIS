@@ -1,8 +1,17 @@
 import os
 import json
 import re
+from pathlib import Path
 from typing import Dict, Any, List, Optional
 from logger import logger
+
+# Load .env from project root (utf-8-sig handles Windows BOM)
+try:
+    from dotenv import load_dotenv
+    _env_path = Path(__file__).resolve().parent.parent.parent / ".env"
+    load_dotenv(dotenv_path=_env_path, encoding="utf-8-sig", override=True)
+except ImportError:
+    pass
 
 # Try importing official Google GenAI SDKs
 GENAI_SDK_AVAILABLE = False
@@ -23,7 +32,12 @@ except ImportError:
 
 class GeminiClient:
     def __init__(self, api_key: Optional[str] = None):
-        self.api_key = api_key or os.environ.get("GEMINI_API_KEY", "").strip()
+        # Accept PRIMARY_GEMINI_API_KEY (test pipeline key) or legacy GEMINI_API_KEY
+        self.api_key = (
+            api_key
+            or os.environ.get("PRIMARY_GEMINI_API_KEY", "").strip()
+            or os.environ.get("GEMINI_API_KEY", "").strip()
+        )
         self.client = None
         self.legacy_model = None
 
@@ -198,7 +212,7 @@ class GeminiClient:
         # 1. Try official SDK (Multimodal Text & Vision)
         if self.client:
             try:
-                for model_id in ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro"]:
+                for model_id in ["gemini-3.1-flash-lite", "gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]:
                     try:
                         contents = [system_prompt]
                         if page_images:
