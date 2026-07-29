@@ -15,11 +15,10 @@ export default {
           hover: '#475569'
         },
         medical: {
-          emerald: '#10B981',
-          teal: '#14B8A6',
+          sky: '#0EA5E9',
+          blue: '#2563EB',
+          indigo: '#6366F1',
           cyan: '#06B6D4',
-          blue: '#3B82F6',
-          purple: '#8B5CF6'
         }
       },
       fontFamily: {
@@ -27,7 +26,8 @@ export default {
       },
       boxShadow: {
         'glass': '0 8px 32px 0 rgba(0, 0, 0, 0.37)',
-        'glow-emerald': '0 0 20px -3px rgba(16, 185, 129, 0.4)',
+        'glow-sky': '0 0 20px -3px rgba(14, 165, 233, 0.45)',
+        'glow-blue': '0 0 20px -3px rgba(37, 99, 235, 0.45)',
       }
     },
   },

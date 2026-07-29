@@ -22,11 +22,11 @@ export default function CropPreviewModal({ imageUrl, pageNumber, answerText, onC
         {/* Modal Header */}
         <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-800 bg-white/90 dark:bg-slate-900/90 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <span className="px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-xs font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+            <span className="px-2.5 py-1 rounded-lg bg-sky-500/10 border border-sky-500/20 text-xs font-semibold text-sky-600 dark:text-sky-400 flex items-center gap-1">
               <MapPin className="w-3.5 h-3.5" /> Page {pageNumber} Snippet
             </span>
             <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-200 truncate max-w-md">
-              Green Highlighted Bounding Box Screenshot
+              Highlighted Bounding Box Screenshot
             </h3>
           </div>
 
@@ -55,7 +55,7 @@ export default function CropPreviewModal({ imageUrl, pageNumber, answerText, onC
             </button>
             <button
               onClick={handleDownload}
-              className="px-3 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-semibold flex items-center gap-1.5 transition shadow-glow-emerald"
+              className="px-3 py-2 rounded-lg bg-sky-500 hover:bg-sky-400 text-white text-xs font-semibold flex items-center gap-1.5 transition shadow-glow-sky"
             >
               <Download className="w-4 h-4" />
               <span>Download Crop</span>
@@ -78,7 +78,7 @@ export default function CropPreviewModal({ imageUrl, pageNumber, answerText, onC
             <img
               src={imageUrl}
               alt="Highlight Crop Preview"
-              className="max-w-full rounded-xl border border-emerald-500/40 shadow-2xl"
+              className="max-w-full rounded-xl border border-sky-500/40 shadow-2xl"
             />
           </div>
         </div>
@@ -87,7 +87,7 @@ export default function CropPreviewModal({ imageUrl, pageNumber, answerText, onC
         {answerText && (
           <div className="px-6 py-3 border-t border-slate-200 dark:border-slate-800 bg-white/90 dark:bg-slate-900/90 text-xs text-slate-700 dark:text-slate-300 flex items-center justify-between">
             <span className="text-slate-500 dark:text-slate-400">Extracted Answer Snippet:</span>
-            <span className="font-semibold text-emerald-600 dark:text-emerald-400 truncate max-w-xl">{answerText}</span>
+            <span className="font-semibold text-sky-600 dark:text-sky-400 truncate max-w-xl">{answerText}</span>
           </div>
         )}
 

@@ -3,44 +3,44 @@
 @tailwind utilities;
 
 @layer utilities {
-  /* Light Glassmorphism Default */
+  /* Soft, Balanced Light Mode Glassmorphism */
   .glass-panel {
-    background: rgba(255, 255, 255, 0.75);
+    background: rgba(255, 255, 255, 0.92);
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
-    border: 1px solid rgba(255, 255, 255, 0.8);
-    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.08);
+    border: 1px solid rgba(226, 232, 240, 0.9);
+    box-shadow: 0 4px 20px -2px rgba(14, 165, 233, 0.05);
   }
   .glass-input {
-    background: rgba(255, 255, 255, 0.85);
+    background: rgba(255, 255, 255, 0.98);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(203, 213, 225, 0.8);
+    border: 1px solid rgba(203, 213, 225, 0.9);
   }
   .glass-card {
-    background: rgba(248, 250, 252, 0.75);
+    background: rgba(248, 250, 252, 0.9);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     border: 1px solid rgba(226, 232, 240, 0.9);
-    box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 2px 10px -1px rgba(0, 0, 0, 0.03);
   }
 
-  /* Dark Glassmorphism Override */
+  /* Executive Dark Glassmorphism */
   .dark .glass-panel {
-    background: rgba(15, 23, 42, 0.75);
+    background: rgba(15, 23, 42, 0.85);
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
     border: 1px solid rgba(255, 255, 255, 0.08);
     box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
   }
   .dark .glass-input {
-    background: rgba(15, 23, 42, 0.7);
+    background: rgba(15, 23, 42, 0.8);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     border: 1px solid rgba(255, 255, 255, 0.12);
   }
   .dark .glass-card {
-    background: rgba(30, 41, 59, 0.55);
+    background: rgba(30, 41, 59, 0.65);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     border: 1px solid rgba(51, 65, 85, 0.6);
@@ -67,7 +67,7 @@
   background: rgba(51, 65, 85, 0.8);
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(16, 185, 129, 0.8);
+  background: rgba(14, 165, 233, 0.8);
 }
 
 @keyframes pulse-glow {

@@ -4,7 +4,7 @@ import FileUpload from './components/FileUpload';
 import QaSection from './components/QaSection';
 import SummaryView from './components/SummaryView';
 import CropPreviewModal from './components/CropPreviewModal';
-import { MessageSquare, FileText, Activity } from 'lucide-react';
+import { MessageSquare, FileText } from 'lucide-react';
 
 export default function App() {
   const [activeDoc, setActiveDoc] = useState(null);
@@ -35,13 +35,13 @@ export default function App() {
   return (
     <div className={`min-h-screen flex flex-col font-sans transition-colors duration-300 ${
       theme === 'dark'
-        ? 'dark bg-slate-950 text-slate-100 selection:bg-emerald-500 selection:text-slate-950'
-        : 'bg-gradient-to-br from-slate-50 via-sky-50/40 to-emerald-50/30 text-slate-900 selection:bg-emerald-500 selection:text-white'
+        ? 'dark bg-slate-950 text-slate-100 selection:bg-sky-500 selection:text-slate-950'
+        : 'bg-slate-50 text-slate-800 selection:bg-sky-500 selection:text-white'
     }`}>
       
-      {/* Ambient glass background glow effects */}
-      <div className="fixed top-0 left-1/4 w-[600px] h-[600px] bg-emerald-500/10 dark:bg-emerald-500/5 rounded-full blur-[120px] pointer-events-none -z-10" />
-      <div className="fixed bottom-0 right-1/4 w-[600px] h-[600px] bg-teal-500/10 dark:bg-cyan-500/5 rounded-full blur-[120px] pointer-events-none -z-10" />
+      {/* Ambient background glow effects */}
+      <div className="fixed top-0 left-1/4 w-[600px] h-[600px] bg-sky-500/10 dark:bg-sky-500/5 rounded-full blur-[120px] pointer-events-none -z-10" />
+      <div className="fixed bottom-0 right-1/4 w-[600px] h-[600px] bg-blue-500/10 dark:bg-cyan-500/5 rounded-full blur-[120px] pointer-events-none -z-10" />
 
       {/* Top Application Header */}
       <Header
@@ -69,7 +69,7 @@ export default function App() {
                 onClick={() => setActiveTab('qa')}
                 className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold transition-all ${
                   activeTab === 'qa'
-                    ? 'bg-emerald-500 text-slate-950 shadow-glow-emerald'
+                    ? 'bg-gradient-to-r from-sky-500 to-blue-600 text-white shadow-glow-sky'
                     : 'glass-panel text-slate-700 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 border border-slate-200 dark:border-slate-800'
                 }`}
               >
@@ -81,18 +81,13 @@ export default function App() {
                 onClick={() => setActiveTab('summary')}
                 className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold transition-all ${
                   activeTab === 'summary'
-                    ? 'bg-emerald-500 text-slate-950 shadow-glow-emerald'
+                    ? 'bg-gradient-to-r from-sky-500 to-blue-600 text-white shadow-glow-sky'
                     : 'glass-panel text-slate-700 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 border border-slate-200 dark:border-slate-800'
                 }`}
               >
                 <FileText className="w-4 h-4" />
                 <span>Report Summary & Findings</span>
               </button>
-            </div>
-
-            <div className="hidden sm:flex items-center gap-2 text-xs text-emerald-600 dark:text-emerald-400 font-medium">
-              <Activity className="w-4 h-4" />
-              <span>Interactive PyMuPDF Index Active</span>
             </div>
           </section>
         )}
@@ -114,7 +109,7 @@ export default function App() {
       </main>
 
       {/* Footer */}
-      <footer className="w-full border-t border-slate-200 dark:border-slate-900 py-6 text-center text-xs text-slate-500 dark:text-slate-400 glass-panel">
+      <footer className="w-full border-t border-slate-200/80 dark:border-slate-900 py-6 text-center text-xs text-slate-500 dark:text-slate-400 glass-panel">
         <p>Medical Report Extract AI • Senior AI Engineering System • Production Ready</p>
       </footer>
 

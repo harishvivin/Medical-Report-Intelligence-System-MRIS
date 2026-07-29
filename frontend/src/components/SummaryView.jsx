@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { User, Building, TestTube, Activity, AlertCircle, FileCheck, Loader2, Sparkles, Stethoscope } from 'lucide-react';
+import { User, Building, TestTube, Activity, AlertCircle, FileCheck, Loader2, Stethoscope } from 'lucide-react';
 import { safeFetchJson } from '../config';
 
 export default function SummaryView({ documentId }) {
@@ -33,9 +33,9 @@ export default function SummaryView({ documentId }) {
 
   if (!documentId) {
     return (
-      <div className="glass-panel p-8 rounded-2xl border border-slate-800 text-center py-12">
-        <FileCheck className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-        <h3 className="text-base font-semibold text-slate-300">No Medical Report Loaded</h3>
+      <div className="glass-panel p-8 rounded-2xl border border-slate-200 dark:border-slate-800 text-center py-12">
+        <FileCheck className="w-12 h-12 text-slate-400 dark:text-slate-600 mx-auto mb-3" />
+        <h3 className="text-base font-semibold text-slate-700 dark:text-slate-300">No Medical Report Loaded</h3>
         <p className="text-xs text-slate-500 mt-1">Upload a PDF report above to view structured summary & findings.</p>
       </div>
     );
@@ -43,16 +43,16 @@ export default function SummaryView({ documentId }) {
 
   if (loading) {
     return (
-      <div className="glass-panel p-12 rounded-2xl border border-slate-800 text-center flex flex-col items-center justify-center gap-3">
-        <Loader2 className="w-8 h-8 text-emerald-400 animate-spin" />
-        <p className="text-xs text-slate-300 font-medium">Extracting patient info, test panels, and abnormal flags...</p>
+      <div className="glass-panel p-12 rounded-2xl border border-slate-200 dark:border-slate-800 text-center flex flex-col items-center justify-center gap-3">
+        <Loader2 className="w-8 h-8 text-sky-500 dark:text-sky-400 animate-spin" />
+        <p className="text-xs text-slate-700 dark:text-slate-300 font-medium">Extracting patient info, test panels, and abnormal flags...</p>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="glass-panel p-6 rounded-2xl border border-red-500/30 text-red-400 text-xs flex items-center gap-2">
+      <div className="glass-panel p-6 rounded-2xl border border-red-500/30 text-red-600 dark:text-red-400 text-xs flex items-center gap-2">
         <AlertCircle className="w-5 h-5 shrink-0" />
         <span>{error}</span>
       </div>
@@ -71,7 +71,7 @@ export default function SummaryView({ documentId }) {
         {/* Patient Card */}
         <div className="glass-panel p-5 rounded-2xl border border-slate-200 dark:border-slate-800 relative overflow-hidden">
           <div className="flex items-center gap-3 mb-4">
-            <div className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+            <div className="p-2.5 rounded-xl bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/20">
               <User className="w-5 h-5" />
             </div>
             <div>
@@ -94,7 +94,7 @@ export default function SummaryView({ documentId }) {
         {/* Hospital Card */}
         <div className="glass-panel p-5 rounded-2xl border border-slate-200 dark:border-slate-800 relative overflow-hidden">
           <div className="flex items-center gap-3 mb-4">
-            <div className="p-2.5 rounded-xl bg-teal-500/10 text-teal-600 dark:text-teal-400 border border-teal-500/20">
+            <div className="p-2.5 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
               <Building className="w-5 h-5" />
             </div>
             <div>
@@ -112,14 +112,14 @@ export default function SummaryView({ documentId }) {
       {/* Tests Performed Tags */}
       <div className="glass-panel p-5 rounded-2xl border border-slate-200 dark:border-slate-800">
         <div className="flex items-center gap-2 mb-3">
-          <TestTube className="w-4 h-4 text-emerald-500 dark:text-emerald-400" />
+          <TestTube className="w-4 h-4 text-sky-500 dark:text-sky-400" />
           <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300">Tests Performed</h3>
         </div>
         <div className="flex flex-wrap gap-2">
           {tests_performed.map((t, idx) => (
             <span
               key={idx}
-              className="px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-xs font-medium text-emerald-700 dark:text-emerald-300"
+              className="px-3 py-1.5 rounded-lg bg-sky-500/10 border border-sky-500/20 text-xs font-medium text-sky-700 dark:text-sky-300"
             >
               {t}
             </span>
@@ -156,7 +156,7 @@ export default function SummaryView({ documentId }) {
       {/* Detailed Findings Table */}
       <div className="glass-panel p-5 rounded-2xl border border-slate-200 dark:border-slate-800">
         <div className="flex items-center gap-2 mb-4">
-          <Activity className="w-4 h-4 text-emerald-500 dark:text-emerald-400" />
+          <Activity className="w-4 h-4 text-sky-500 dark:text-sky-400" />
           <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300">
             Important Lab Findings ({important_findings.length})
           </h3>
@@ -176,14 +176,14 @@ export default function SummaryView({ documentId }) {
               {important_findings.map((f, idx) => (
                 <tr key={idx} className="hover:bg-slate-100/50 dark:hover:bg-slate-900/50 transition">
                   <td className="py-2.5 px-3 font-medium">{f.parameter}</td>
-                  <td className="py-2.5 px-3 font-semibold text-emerald-600 dark:text-emerald-400">{f.value}</td>
+                  <td className="py-2.5 px-3 font-semibold text-sky-600 dark:text-sky-400">{f.value}</td>
                   <td className="py-2.5 px-3 text-slate-500 dark:text-slate-400">{f.reference_range}</td>
                   <td className="py-2.5 px-3 text-right">
                     <span
                       className={`px-2 py-0.5 rounded text-[10px] font-semibold ${
                         f.status.toLowerCase().includes('abnormal')
-                          ? 'bg-amber-500/20 text-amber-300'
-                          : 'bg-emerald-500/20 text-emerald-300'
+                          ? 'bg-amber-500/20 text-amber-600 dark:text-amber-300'
+                          : 'bg-sky-500/20 text-sky-700 dark:text-sky-300'
                       }`}
                     >
                       {f.status}
@@ -198,17 +198,17 @@ export default function SummaryView({ documentId }) {
 
       {/* Doctor Recommendations (Only if present in document) */}
       {recommendations && recommendations.length > 0 && (
-        <div className="glass-panel p-5 rounded-2xl border border-teal-500/30">
+        <div className="glass-panel p-5 rounded-2xl border border-sky-500/30">
           <div className="flex items-center gap-2 mb-3">
-            <Stethoscope className="w-4 h-4 text-teal-400" />
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-teal-300">
+            <Stethoscope className="w-4 h-4 text-sky-500 dark:text-sky-400" />
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-sky-600 dark:text-sky-300">
               Doctor Recommendations & Notes
             </h3>
           </div>
-          <ul className="space-y-2 text-xs text-slate-200">
+          <ul className="space-y-2 text-xs text-slate-700 dark:text-slate-200">
             {recommendations.map((rec, idx) => (
-              <li key={idx} className="p-3 rounded-xl bg-slate-950/60 border border-slate-800 flex items-start gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-teal-400 mt-1.5 shrink-0" />
+              <li key={idx} className="p-3 rounded-xl bg-white/80 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 flex items-start gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-sky-500 mt-1.5 shrink-0" />
                 <span>{rec}</span>
               </li>
             ))}
