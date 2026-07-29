@@ -50,17 +50,7 @@ class GeminiClientManager:
                 raise RuntimeError("Primary API key failed and no distinct fallback key provided.") from e
 
     def _build_prompt(self, user_question: str) -> str:
-        return f"""Analyze the provided PDF document. Locate the exact region/snippet that answers or contains the visual information for the following query:
-
-USER QUESTION: "{user_question}"
-
-INSTRUCTIONS:
-1. Identify the 1-based page number where the relevant information is visible.
-2. Locate the precise bounding box enclosing ONLY the section that answers the question.
-3. Return the coordinates as "box_2d": [ymin, xmin, ymax, xmax].
-4. Scale all coordinates as integers between 0 and 1000 (where 0,0 is Top-Left and 1000,1000 is Bottom-Right).
-
-Respond strictly using the required JSON schema."""
+        return f'Look through the entire PDF and find the part that answers this question: "{user_question}". Return the page number and the bounding box coordinates [ymin, xmin, ymax, xmax] (0-1000 scale) of exactly that section.'
 
     def _call_gemini(self, client: genai.Client, pdf_path: str, prompt: str) -> GroundingBox:
         # Upload PDF file to Gemini Files API
