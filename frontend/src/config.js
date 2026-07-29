@@ -1,12 +1,25 @@
+// Production backend URL (Render deployment)
+const RENDER_BACKEND_URL = 'https://medical-report-intelligence-system-mris.onrender.com';
+
 // Dynamic API Base URL resolution:
 // 1. Checks localStorage ('CUSTOM_API_URL')
-// 2. Checks VITE_API_URL environment variable
-// 3. Fallbacks to relative path '' (same domain when hosted on Render)
+// 2. Checks VITE_API_URL environment variable (set in GitHub Actions secret)
+// 3. Falls back to Render backend if on GitHub Pages (not localhost)
+// 4. Falls back to relative '' when running locally (same domain)
 export function getApiBase() {
   const stored = typeof window !== 'undefined' ? localStorage.getItem('CUSTOM_API_URL') : null;
   const envUrl = import.meta.env.VITE_API_URL || '';
   const url = (stored || envUrl).trim();
-  return url ? url.replace(/\/$/, '') : '';
+  if (url) return url.replace(/\/$/, '');
+
+  // Auto-detect: if not running on localhost, use Render backend
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname;
+    if (host !== 'localhost' && host !== '127.0.0.1') {
+      return RENDER_BACKEND_URL;
+    }
+  }
+  return '';
 }
 
 export const API_BASE = getApiBase();
