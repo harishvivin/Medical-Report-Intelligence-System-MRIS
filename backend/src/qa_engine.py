@@ -457,8 +457,9 @@ class QAEngine:
                         "bounding_box": get_best_bbox(block)
                     }
 
-        # 3. Age & Gender Query
-        if "age" in entities or "gender" in entities or any(w in norm_q for w in ["age", "gender", "sex", "yrs", "years old"]):
+        # 3. Age & Gender Query (patient default, unless asking about siblings)
+        is_asking_siblings = any(w in norm_q for w in ["sibling", "siblings", "brother", "sister"])
+        if not is_asking_siblings and ("age" in entities or "gender" in entities or any(w in norm_q for w in ["age", "gender", "sex", "yrs", "years old"])):
             for block in self.index.blocks:
                 m = re.search(r'(?:age\s*[\/\\]?\s*sex|age\s*[\/\\]?\s*gender|age)\s*[:\-]?\s*(\d{1,3})\s*(?:yrs|years|y)?(?:\s*[\/\,]\s*([M|F|Male|Female]))?', block["text"], re.I)
                 if m:
@@ -479,6 +480,21 @@ class QAEngine:
                         "confidence": 0.95,
                         "bounding_box": get_best_bbox(block)
                     }
+
+        # 3b. Sibling Specific Direct Lookup
+        if is_asking_siblings:
+            for block in self.index.blocks:
+                txt_lower = block["text"].lower()
+                if any(w in txt_lower for w in ["sibling", "brother", "sister"]):
+                    lines = [l.strip() for l in block["text"].split("\n") if any(w in l.lower() for w in ["sibling", "brother", "sister"]) and not any(non_s in l.lower() for non_s in ["mother", "father", "parent", "spouse"])]
+                    if lines:
+                        return {
+                            "answer": "\n".join(lines),
+                            "page_number": block["page_number"],
+                            "page_index": block["page_index"],
+                            "confidence": 0.95,
+                            "bounding_box": get_best_bbox(block)
+                        }
 
         # 4. Date Query
         if "date" in entities or any(w in norm_q for w in ["date", "collection date", "report date", "subm"]):

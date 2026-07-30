@@ -17,6 +17,7 @@ Instructions:
 2. Return a JSON object containing the page_number (1-based index) where the answer is found.
 3. Return the 2D bounding box that tightly encloses ONLY the relevant text/snippet that answers the question.
 4. Use the key "box_2d" in [ymin, xmin, ymax, xmax] format. Coordinates MUST be integers normalized to a 0-1000 scale relative to the page size.
+5. SIBLINGS vs PARENTS RULE: Mother, Father, and Parents are NOT siblings. If asked about siblings, locate ONLY sibling/brother/sister entries. Do NOT include Mother or Father.
 
 Return ONLY a JSON object in this format:
 {{

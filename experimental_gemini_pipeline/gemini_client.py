@@ -174,7 +174,12 @@ class GeminiClientManager:
             f'3. BOUNDING BOX ACCURACY RULES:\n'
             f'   - For table rows (e.g. Sibling 1, Sibling 2, Mother, Hemoglobin): ymin and ymax MUST tightly cover ONLY the single target row containing that specific answer. Do NOT include adjacent rows above or below!\n'
             f'   - xmin and xmax should span across the row from the row label (e.g. "Sibling") to the rightmost value cell.\n'
-            f'   - For non-table content: cover the line or paragraph containing the answer.\n'
+            f'   - For non-table content: cover the line or paragraph containing the answer.\n\n'
+            f'4. SIBLINGS vs FAMILY MEMBERS EXCLUSION RULE:\n'
+            f'   - Siblings refer STRICTLY to brothers and sisters (e.g. "Sibling 1", "Sibling 2", "Brother", "Sister").\n'
+            f'   - Mother, Father, Parents, Spouse, Children, Son, Daughter are NOT siblings.\n'
+            f'   - If the user asks about SIBLINGS (e.g. "siblings age and gender", "sibling details"), extract ONLY the data and rows for brothers and sisters.\n'
+            f'   - STRICTLY DO NOT include Mother, Father, Parents, or Spouse in the results, answer text, or bounding boxes when asked about siblings.\n'
         )
 
     def _call_gemini(self, client: genai.Client, pdf_path: str, prompt: str) -> GroundingBoxList:
@@ -210,9 +215,20 @@ def locate_answer_in_pdf(pdf_path: str, question: str) -> dict:
         if not gbl.results:
             return {"found": False, "results": [], "answer": None, "error": "No matching information found in the document."}
 
+        q_norm = (question or "").lower()
+        is_sibling_query = any(w in q_norm for w in ["sibling", "siblings", "brother", "sister"])
+
         results = []
         for gb in gbl.results:
             clean_val = clean_extracted_value(gb.answer_text, question)
+            lbl = (gb.label or "").lower()
+            ans_lower = clean_val.lower()
+
+            if is_sibling_query:
+                # Exclude non-sibling family members (mother, father, parent, spouse)
+                if any(non_sib in lbl or non_sib in ans_lower for non_sib in ["mother", "father", "parent", "spouse"]):
+                    continue
+
             results.append({
                 "page_number": gb.page_number,
                 "page": gb.page_number,
@@ -223,6 +239,9 @@ def locate_answer_in_pdf(pdf_path: str, question: str) -> dict:
                 "label": gb.label,
                 "confidence": 0.99,
             })
+
+        if not results:
+            return {"found": False, "results": [], "answer": "The uploaded report does not contain sibling information.", "error": "No matching sibling information found in the document."}
 
         first = results[0] if results else {}
         return {

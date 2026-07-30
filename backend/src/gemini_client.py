@@ -115,7 +115,10 @@ class GeminiClient:
             "   'matched_line': null,\n"
             "   'page': null,\n"
             "   'confidence': 0.0,\n"
-            "   'ymin': null, 'xmin': null, 'ymax': null, 'xmax': null.\n\n"
+            "   'ymin': null, 'xmin': null, 'ymax': null, 'xmax': null.\n"
+            "6. SIBLINGS vs FAMILY MEMBERS EXCLUSION RULE: Mother, Father, Parents, Spouse, and Children are NOT siblings.\n"
+            "   If the user asks about siblings (or brothers/sisters), return ONLY details for siblings (brother/sister).\n"
+            "   STRICTLY DO NOT include Mother, Father, or other parents/relatives in the answer string or matched_line.\n\n"
             "RETURN ONLY A VALID JSON OBJECT using this exact schema:\n"
             "{\n"
             '  "found": true,\n'
@@ -143,9 +146,20 @@ class GeminiClient:
             parsed = json.loads(clean_json)
             if isinstance(parsed, dict):
                 matched_line = parsed.get("matched_line") or parsed.get("matched_text")
+                ans_str = str(parsed.get("answer", "")).strip()
+
+                # Filter out mother/father/parent lines if user asked about siblings
+                if any(w in (question or "").lower() for w in ["sibling", "siblings", "brother", "sister"]):
+                    if ans_str and any(non_sib in ans_str.lower() for non_sib in ["mother", "father", "parent", "spouse"]):
+                        lines = [l for l in ans_str.split("\n") if not any(non_sib in l.lower() for non_sib in ["mother", "father", "parent", "spouse"])]
+                        ans_str = "\n".join(lines).strip()
+                    if matched_line and any(non_sib in str(matched_line).lower() for non_sib in ["mother", "father", "parent", "spouse"]):
+                        m_lines = [l for l in str(matched_line).split("\n") if not any(non_sib in l.lower() for non_sib in ["mother", "father", "parent", "spouse"])]
+                        matched_line = "\n".join(m_lines).strip() if m_lines else None
+
                 return {
                     "found": bool(parsed.get("found", True)),
-                    "answer": str(parsed.get("answer", "")).strip(),
+                    "answer": ans_str,
                     "matched_line": matched_line,
                     "matched_text": matched_line,
                     "page": parsed.get("page"),

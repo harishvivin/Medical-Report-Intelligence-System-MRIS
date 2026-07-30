@@ -41,3 +41,5 @@ frontend/dist/
 .idea/
 .DS_Store
 Thumbs.db
+.env
+crop_output.png

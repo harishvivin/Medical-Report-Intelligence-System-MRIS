@@ -172,5 +172,31 @@ class TestAllUserQuestions(unittest.TestCase):
         
         reader.close()
 
+    @patch("qa_engine.locate_answer_in_pdf")
+    def test_sibling_question_excludes_mother_and_father(self, mock_locate):
+        # Test question parser includes sibling
+        parsed = QuestionParser.parse("What is the siblings age and gender?")
+        self.assertIn("sibling", parsed["target_entities"])
+
+        # Test Gemini locate_answer_in_pdf return value when mock returns sibling data
+        mock_locate.return_value = {
+            "found": True,
+            "answer": "Sibling 1: 26 Yrs / Male",
+            "page_number": 1,
+            "confidence": 0.99,
+            "box_2d": [100, 50, 150, 400]
+        }
+
+        reader = PDFReader(self.pdf_blood)
+        entries = reader.extract_all_text_blocks()
+        doc_index = DocumentIndex(entries)
+        qa = QAEngine(self.pdf_blood, doc_index)
+
+        res = qa.answer_question("What is the siblings age and gender?")
+        self.assertIn("Sibling 1", res["answer"])
+        self.assertNotIn("Mother", res["answer"])
+        self.assertNotIn("Father", res["answer"])
+        reader.close()
+
 if __name__ == "__main__":
     unittest.main()

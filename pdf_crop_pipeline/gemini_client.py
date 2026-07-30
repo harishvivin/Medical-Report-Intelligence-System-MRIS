@@ -55,7 +55,11 @@ class GeminiClientManager:
                 raise RuntimeError("Primary API key failed and no fallback key provided.") from e
 
     def _build_prompt(self, user_question: str) -> str:
-        return f'Look through the entire PDF and find the part that answers this question: "{user_question}". Return the page number and the bounding box coordinates [ymin, xmin, ymax, xmax] (0-1000 scale) of exactly that section.'
+        return (
+            f'Look through the entire PDF and find the part that answers this question: "{user_question}". '
+            f'Note: Mother, Father, and Parents are NOT siblings. If asked about siblings, locate ONLY sibling/brother/sister entries and exclude parents. '
+            f'Return the page number and the bounding box coordinates [ymin, xmin, ymax, xmax] (0-1000 scale) of exactly that section.'
+        )
 
     def _call_gemini(self, client: genai.Client, pdf_path: str, prompt: str) -> GroundingBox:
         # Upload PDF file to Gemini Files API

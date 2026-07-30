@@ -26,7 +26,9 @@ MEDICAL_ENTITIES = {
     "liver": ["sgot", "sgpt", "ast", "alt", "bilirubin", "total bilirubin", "direct bilirubin", "indirect bilirubin", "alkaline phosphatase", "alp", "ggt"],
     "urine": ["urine", "urine colour", "urine ph", "protein", "sugar", "specific gravity", "pus cells", "epithelial cells", "rcbs in urine"],
     "cotinine": ["cotinine", "nicotine", "tobacco screening"],
-    "application": ["application number", "app no", "app number", "mer number", "mer no", "hsp code", "service type"]
+    "application": ["application number", "app no", "app number", "mer number", "mer no", "hsp code", "service type"],
+    "sibling": ["sibling", "siblings", "brother", "brother's", "sister", "sister's", "bro", "sis"],
+    "parents": ["mother", "father", "parent", "parents", "mom", "dad"]
 }
 
 SUMMARY_TRIGGER_WORDS = {"summary", "summarize", "overview", "report summary", "brief", "key findings"}
