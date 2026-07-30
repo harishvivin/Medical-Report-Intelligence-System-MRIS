@@ -171,9 +171,10 @@ class GeminiClientManager:
             f'2. MULTIPLE ENTITIES vs SINGLE ENTITY:\n'
             f'   - If asking about ONE entity (e.g. "patient name", "sex"), return 1 result.\n'
             f'   - If asking about MULTIPLE distinct entities (e.g. "siblings"), return 1 result per entity.\n\n'
-            f'3. BOUNDING BOX RULES:\n'
-            f'   - For table rows: cover the row containing the answer, from leftmost label to rightmost value cell.\n'
-            f'   - For non-table content: cover the line or paragraph with the answer.\n'
+            f'3. BOUNDING BOX ACCURACY RULES:\n'
+            f'   - For table rows (e.g. Sibling 1, Sibling 2, Mother, Hemoglobin): ymin and ymax MUST tightly cover ONLY the single target row containing that specific answer. Do NOT include adjacent rows above or below!\n'
+            f'   - xmin and xmax should span across the row from the row label (e.g. "Sibling") to the rightmost value cell.\n'
+            f'   - For non-table content: cover the line or paragraph containing the answer.\n'
         )
 
     def _call_gemini(self, client: genai.Client, pdf_path: str, prompt: str) -> GroundingBoxList:
