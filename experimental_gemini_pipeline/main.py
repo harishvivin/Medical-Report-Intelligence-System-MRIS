@@ -1,17 +1,22 @@
-from gemini_client import GeminiClientManager
-from pdf_processor import crop_pdf_by_normalized_box
+try:
+    from .gemini_client import GeminiClientManager, clean_extracted_value
+    from .pdf_processor import crop_pdf_by_normalized_box
+except ImportError:
+    from gemini_client import GeminiClientManager, clean_extracted_value
+    from pdf_processor import crop_pdf_by_normalized_box
 
 def run_pipeline(pdf_file: str, user_question: str, output_image: str = "extracted_snippet.png"):
     manager = GeminiClientManager()
-    
+
     print(f"📄 Processing: {pdf_file}")
     print(f"❓ Prompt Question: {user_question}\n")
-    
+
     # Step 1: Gemini visual grounding
     grounding = manager.extract_bounding_box(pdf_file, user_question)
-    
+
     print(f"📍 Detected Page: {grounding.page_number}")
     print(f"🎯 Coordinates [ymin, xmin, ymax, xmax]: {grounding.box_2d}")
+    print(f"🏷️ Answer: {grounding.answer_text}")
     print(f"🏷️ Label: {grounding.label}\n")
 
     # Step 2: Extract & Crop
@@ -29,6 +34,7 @@ def process_query(pdf_path: str, question: str, output_crop_path: str = None) ->
     try:
         gb = manager.extract_bounding_box(pdf_path, question)
         crop_path = crop_pdf_by_normalized_box(pdf_path, gb.page_number, gb.box_2d, out)
+        ans = clean_extracted_value(gb.answer_text, question)
         return {
             "result": {
                 "found": True,
@@ -36,8 +42,8 @@ def process_query(pdf_path: str, question: str, output_crop_path: str = None) ->
                 "page_number": gb.page_number,
                 "bounding_box": gb.box_2d,
                 "box_2d": gb.box_2d,
-                "matched_text": gb.label,
-                "answer": gb.label,
+                "matched_text": ans,
+                "answer": ans,
                 "confidence": 0.99
             },
             "crop_path": crop_path
@@ -48,5 +54,5 @@ def process_query(pdf_path: str, question: str, output_crop_path: str = None) ->
 if __name__ == "__main__":
     pdf_path = "U100723465AD0.pdf"
     question = "what was latitude and longitude of patient, give coordinates for entire region so that I can extract that part"
-    
+
     run_pipeline(pdf_path, question, "extracted_gps_snippet.png")

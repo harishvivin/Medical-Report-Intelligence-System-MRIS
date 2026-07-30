@@ -21,8 +21,12 @@ from dotenv import load_dotenv
 _ROOT = Path(__file__).resolve().parent.parent
 load_dotenv(dotenv_path=_ROOT / ".env", encoding="utf-8-sig", override=True)
 
-from gemini_client import GeminiClientManager, locate_answer_in_pdf
-from pdf_processor import crop_pdf_by_normalized_box
+try:
+    from .gemini_client import GeminiClientManager, locate_answer_in_pdf
+    from .pdf_processor import crop_pdf_by_normalized_box
+except ImportError:
+    from gemini_client import GeminiClientManager, locate_answer_in_pdf
+    from pdf_processor import crop_pdf_by_normalized_box
 
 # ── Directories ──────────────────────────────────────────────
 BASE_DIR   = Path(__file__).resolve().parent
