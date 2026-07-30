@@ -60,9 +60,13 @@ class AskRequest(BaseModel):
 
 # ── Routes ───────────────────────────────────────────────────
 
-@app.get("/")
-def health():
+@app.api_route("/", methods=["GET", "HEAD"])
+def root():
     return {"status": "ok", "service": "Medical Report Extract AI - Gemini Pipeline Backend"}
+
+@app.api_route("/health", methods=["GET", "HEAD"])
+def health():
+    return {"status": "ok"}
 
 
 @app.post("/api/process")
