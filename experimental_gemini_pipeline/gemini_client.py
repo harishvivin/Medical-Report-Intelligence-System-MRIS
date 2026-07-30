@@ -202,13 +202,13 @@ class GeminiClientManager:
                 pass
 
 
-# Backward compatibility helper — returns a LIST of result dicts
+# Backward compatibility helper — returns top-level answer + list of result dicts
 def locate_answer_in_pdf(pdf_path: str, question: str) -> dict:
     manager = GeminiClientManager()
     try:
         gbl = manager.extract_bounding_boxes(pdf_path, question)
         if not gbl.results:
-            return {"found": False, "results": [], "error": "No matching information found in the document."}
+            return {"found": False, "results": [], "answer": None, "error": "No matching information found in the document."}
 
         results = []
         for gb in gbl.results:
@@ -224,6 +224,18 @@ def locate_answer_in_pdf(pdf_path: str, question: str) -> dict:
                 "confidence": 0.99,
             })
 
-        return {"found": True, "results": results}
+        first = results[0] if results else {}
+        return {
+            "found": True,
+            "results": results,
+            "answer": first.get("answer", ""),
+            "matched_text": first.get("matched_text", ""),
+            "page_number": first.get("page_number", 1),
+            "page": first.get("page", 1),
+            "box_2d": first.get("box_2d", []),
+            "bounding_box": first.get("bounding_box", []),
+            "label": first.get("label", ""),
+            "confidence": 0.99
+        }
     except Exception as e:
-        return {"found": False, "results": [], "error": str(e)}
+        return {"found": False, "results": [], "answer": None, "error": str(e)}
