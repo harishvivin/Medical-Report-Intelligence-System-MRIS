@@ -23,14 +23,15 @@ def crop_pdf_by_normalized_box(pdf_path: str, page_number: int, box_2d: list, ou
 
     # ── Precision Row Padding ──────────────────────────────────────────────────
     # Horizontal (X): Extend 25% of page width left & right to capture full row context.
-    # Vertical (Y): Use tight 2.0pt padding to NEVER bleed into adjacent rows above/below.
+    # Vertical (Y): 8pt top padding / 6pt bottom padding prevents downward shift while avoiding row bleeding.
     pad_x = 0.25 * w
-    pad_y = 2.0  # Tight 2pt vertical padding prevents capturing adjacent rows
+    pad_y_top = 8.0
+    pad_y_bottom = 6.0
 
     left   = max(0.0, xmin_px - pad_x)
     right  = min(w,   xmax_px + pad_x)
-    top    = max(0.0, ymin_px - pad_y)
-    bottom = min(h,   ymax_px + pad_y)
+    top    = max(0.0, ymin_px - pad_y_top)
+    bottom = min(h,   ymax_px + pad_y_bottom)
 
     # ── Enforce Minimum Readable Width ────────────────────────────────────────
     # Ensure crop width is at least 350pt so the full table row (label + value) is visible.
