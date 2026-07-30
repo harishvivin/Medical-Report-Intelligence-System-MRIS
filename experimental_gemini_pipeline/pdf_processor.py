@@ -12,11 +12,12 @@ def crop_pdf_by_normalized_box(pdf_path: str, page_number: int, box_2d: list, ou
     page = doc[page_idx]
     w, h = page.rect.width, page.rect.height
 
-    # Add padding to capture context (20% page width to the left for text, 5% right, 2% vertical)
+    # Horizontal: extend 20% left to capture the row label/name column, 3% right
+    # Vertical: use tiny fixed pixel padding (4px) — must NOT bleed into adjacent table rows
     left   = max(0, ((xmin_1000 / 1000.0) * w) - (0.20 * w))
-    top    = max(0, ((ymin_1000 / 1000.0) * h) - (0.02 * h))
-    right  = min(w, ((xmax_1000 / 1000.0) * w) + (0.05 * w))
-    bottom = min(h, ((ymax_1000 / 1000.0) * h) + (0.02 * h))
+    top    = max(0, ((ymin_1000 / 1000.0) * h) - 4)
+    right  = min(w, ((xmax_1000 / 1000.0) * w) + (0.03 * w))
+    bottom = min(h, ((ymax_1000 / 1000.0) * h) + 4)
 
     crop_rect = fitz.Rect(left, top, right, bottom)
     pix = page.get_pixmap(matrix=fitz.Matrix(2.0, 2.0), clip=crop_rect)

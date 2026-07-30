@@ -66,8 +66,10 @@ class GeminiClientManager:
             f'For EACH answer found, return the page number, the exact answer_text (the precise value e.g. "13.8 g/dL", "Male", "25 years"), '
             f'a short label describing the context (e.g. "Sister 1 - Age", "Brother - Gender"), '
             f'and the bounding box [ymin, xmin, ymax, xmax] (0-1000 scale). '
-            f'IMPORTANT: The bounding box MUST be drawn widely to include the entire row with both the label and value. '
-            f'Return ALL results you find, not just the first one.'
+            f'BOUNDING BOX RULES: '
+            f'1. For TABLE rows: draw the box to cover EXACTLY the single row containing the answer, from the leftmost edge of the row label to the rightmost value cell. Do NOT include the header row above or any adjacent row below. '
+            f'2. For non-table content: draw the box to cover the full line or paragraph that contains the answer. '
+            f'3. Return ALL results you find, not just the first one.'
         )
 
     def _call_gemini(self, client: genai.Client, pdf_path: str, prompt: str) -> GroundingBoxList:
