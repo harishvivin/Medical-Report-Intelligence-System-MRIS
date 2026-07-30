@@ -104,19 +104,23 @@ async def upload_pdf(file: UploadFile = File(...)):
 
 @app.post("/api/qa/ask")
 async def ask_question(req: AskRequest):
-    """Ask a question about an uploaded PDF."""
+    """Ask a question about an uploaded PDF. Returns multiple answers if found."""
     session = SESSIONS.get(req.document_id)
     if not session:
         raise HTTPException(status_code=404, detail="Document session not found. Please upload the PDF again.")
 
     pdf_path = session["pdf_path"]
 
-    # Call the Gemini pipeline
+    # Call the Gemini pipeline — returns {found, results: [...]}
     result = locate_answer_in_pdf(pdf_path, req.question)
 
-    if not result.get("found"):
+    if not result.get("found") or not result.get("results"):
+        err = result.get("error", "")
+        if err:
+            print(f"[GEMINI ERROR] {err}")
         return {
             "question": req.question,
+            "answers": [],
             "answer": "The uploaded report does not contain this information.",
             "page_number": None,
             "confidence": 0.0,
@@ -124,46 +128,63 @@ async def ask_question(req: AskRequest):
             "bounding_box": None,
         }
 
-    page_number = result.get("page_number", 1)
-    box_2d = result.get("box_2d")
-    answer_text = result.get("answer", result.get("label", ""))
+    all_results = result["results"]
+    processed_answers = []
 
-    # Generate crop image
-    snippet_url = None
-    if box_2d and len(box_2d) == 4:
-        try:
-            import fitz
-            doc = fitz.open(pdf_path)
-            page_idx = min(page_number - 1, len(doc) - 1)
-            page = doc[page_idx]
-            w, h = page.rect.width, page.rect.height
-            doc.close()
+    for idx, r in enumerate(all_results):
+        page_number = r.get("page_number", 1)
+        box_2d = r.get("box_2d")
+        answer_text = r.get("answer", "")
+        label = r.get("label", "")
 
-            ymin, xmin, ymax, xmax = [float(v) for v in box_2d]
-            pt_bbox = [
-                round((xmin / 1000.0) * w, 2),
-                round((ymin / 1000.0) * h, 2),
-                round((xmax / 1000.0) * w, 2),
-                round((ymax / 1000.0) * h, 2),
-            ]
-
-            crop_filename = f"{req.document_id}_p{page_number}_{uuid.uuid4().hex[:8]}.png"
-            crop_path = str(CROPS_DIR / crop_filename)
-            crop_pdf_by_normalized_box(pdf_path, page_number, box_2d, crop_path)
-            snippet_url = f"/api/crops/{crop_filename}"
-        except Exception as e:
-            print(f"[CROP ERROR] {e}")
-            pt_bbox = None
-    else:
+        snippet_url = None
         pt_bbox = None
 
+        if box_2d and len(box_2d) == 4:
+            try:
+                import fitz
+                doc = fitz.open(pdf_path)
+                page_idx = min(page_number - 1, len(doc) - 1)
+                page = doc[page_idx]
+                w, h = page.rect.width, page.rect.height
+                doc.close()
+
+                ymin, xmin, ymax, xmax = [float(v) for v in box_2d]
+                pt_bbox = [
+                    round((xmin / 1000.0) * w, 2),
+                    round((ymin / 1000.0) * h, 2),
+                    round((xmax / 1000.0) * w, 2),
+                    round((ymax / 1000.0) * h, 2),
+                ]
+
+                crop_filename = f"{req.document_id}_p{page_number}_r{idx}_{uuid.uuid4().hex[:6]}.png"
+                crop_path = str(CROPS_DIR / crop_filename)
+                crop_pdf_by_normalized_box(pdf_path, page_number, box_2d, crop_path)
+                snippet_url = f"/api/crops/{crop_filename}"
+            except Exception as e:
+                print(f"[CROP ERROR] result {idx}: {e}")
+
+        processed_answers.append({
+            "index": idx + 1,
+            "answer": answer_text,
+            "label": label,
+            "page_number": page_number,
+            "confidence": r.get("confidence", 0.99),
+            "snippet_url": snippet_url,
+            "bounding_box": pt_bbox,
+        })
+
+    # Also expose the first result as top-level for backward compatibility
+    first = processed_answers[0] if processed_answers else {}
     return {
         "question": req.question,
-        "answer": answer_text,
-        "page_number": page_number,
-        "confidence": result.get("confidence", 0.99),
-        "snippet_url": snippet_url,
-        "bounding_box": pt_bbox,
+        "answers": processed_answers,
+        # backward-compat fields
+        "answer": first.get("answer", ""),
+        "page_number": first.get("page_number"),
+        "confidence": first.get("confidence", 0.99),
+        "snippet_url": first.get("snippet_url"),
+        "bounding_box": first.get("bounding_box"),
     }
 
 

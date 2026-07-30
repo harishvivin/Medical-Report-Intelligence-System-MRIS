@@ -30,20 +30,37 @@ export default function QaSection({ documentId, onOpenCropModal }) {
         throw new Error("No response received from the QA engine.");
       }
 
-      const rawSnippetUrl = data?.snippet_url;
-      const fullSnippetUrl = rawSnippetUrl
-        ? (rawSnippetUrl.startsWith('http') ? rawSnippetUrl : `${getApiBase()}${rawSnippetUrl}`)
-        : null;
+      // Normalise answers — use new `answers` list if available, else build from legacy fields
+      let answers = [];
+      if (data.answers && data.answers.length > 0) {
+        answers = data.answers.map((a) => ({
+          ...a,
+          snippetUrl: a.snippet_url
+            ? (a.snippet_url.startsWith('http') ? a.snippet_url : `${getApiBase()}${a.snippet_url}`)
+            : null,
+        }));
+      } else {
+        // Backward-compat: single answer
+        const rawSnippetUrl = data?.snippet_url;
+        const fullSnippetUrl = rawSnippetUrl
+          ? (rawSnippetUrl.startsWith('http') ? rawSnippetUrl : `${getApiBase()}${rawSnippetUrl}`)
+          : null;
+        answers = [{
+          index: 1,
+          answer: data?.answer || "The uploaded report does not contain this information.",
+          label: null,
+          page_number: data?.page_number || null,
+          confidence: data?.confidence || 0,
+          snippetUrl: fullSnippetUrl,
+          bounding_box: data?.bounding_box || null,
+        }];
+      }
 
       setQaHistory((prev) => [
         {
           id: Date.now(),
           question: targetQ,
-          answer: data?.answer || "The uploaded report does not contain this information.",
-          pageNumber: data?.page_number || null,
-          confidence: data?.confidence || 0,
-          snippetUrl: fullSnippetUrl,
-          boundingBox: data?.bounding_box || null,
+          answers,
         },
         ...prev,
       ]);
@@ -122,94 +139,118 @@ export default function QaSection({ documentId, onOpenCropModal }) {
 
       {/* Answer History List */}
       <div className="space-y-4">
-        {qaHistory.map((item) => {
-          const isNotFound = item.answer.includes("does not contain this information");
-          const confidencePct = Math.round((item.confidence || 0) * 100);
+        {qaHistory.map((item) => (
+          <div
+            key={item.id}
+            className="bg-white dark:bg-slate-900 p-6 rounded-2xl border-2 border-slate-300 dark:border-slate-800/80 shadow-lg transition-all hover:border-slate-400 dark:hover:border-slate-700"
+          >
+            {/* Question Header */}
+            <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-3 mb-4">
+              <div className="w-2.5 h-2.5 rounded-full bg-sky-500 dark:bg-sky-400 animate-pulse shrink-0" />
+              <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">{item.question}</h3>
+              {item.answers.length > 1 && (
+                <span className="ml-auto shrink-0 px-2.5 py-1 rounded-md bg-sky-500/10 border border-sky-500/30 text-[11px] text-sky-700 dark:text-sky-300 font-bold">
+                  {item.answers.length} Results
+                </span>
+              )}
+            </div>
 
-          return (
-            <div
-              key={item.id}
-              className="bg-white dark:bg-slate-900 p-6 rounded-2xl border-2 border-slate-300 dark:border-slate-800/80 shadow-lg transition-all hover:border-slate-400 dark:hover:border-slate-700"
-            >
-              {/* Question Header */}
-              <div className="flex items-start justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-3 mb-4">
-                <div className="flex items-center gap-2">
-                  <div className="w-2.5 h-2.5 rounded-full bg-sky-500 dark:bg-sky-400 animate-pulse" />
-                  <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">{item.question}</h3>
-                </div>
+            {/* Answer Cards — numbered 1, 2, 3... */}
+            <div className="flex flex-col gap-4">
+              {item.answers.map((ans) => {
+                const isNotFound = ans.answer.includes("does not contain");
+                const confidencePct = Math.round((ans.confidence || 0) * 100);
 
-                <div className="flex items-center gap-2 shrink-0">
-                  {item.pageNumber && (
-                    <span className="px-2.5 py-1 rounded-md bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-[11px] text-slate-800 dark:text-slate-200 font-bold flex items-center gap-1">
-                      <MapPin className="w-3 h-3 text-sky-600 dark:text-sky-400" />
-                      Page {item.pageNumber}
-                    </span>
-                  )}
-                  {!isNotFound && (
-                    <span
-                      className={`px-2.5 py-1 rounded-md text-[11px] font-bold flex items-center gap-1 border ${
-                        confidencePct > 50
-                          ? 'bg-sky-500/10 border-sky-500/40 text-sky-700 dark:text-sky-300'
-                          : 'bg-amber-500/10 border-amber-500/40 text-amber-700 dark:text-amber-300'
-                      }`}
-                    >
-                      <CheckCircle className="w-3 h-3" />
-                      {confidencePct}% Match
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              {/* Answer Content */}
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-                <div className={`${item.snippetUrl ? 'lg:col-span-7' : 'lg:col-span-12'} space-y-3`}>
-                  <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800">
-                    <p
-                      className={`text-sm leading-relaxed ${
-                        isNotFound ? 'text-amber-700 dark:text-amber-400/90 font-semibold italic' : 'text-slate-900 dark:text-slate-100 font-semibold'
-                      }`}
-                    >
-                      {item.answer}
-                    </p>
-                  </div>
-                  {item.boundingBox && (
-                    <p className="text-[11px] text-slate-600 dark:text-slate-400 font-mono font-medium">
-                      Bounding Box [x0, y0, x1, y1]: [{item.boundingBox.join(', ')}]
-                    </p>
-                  )}
-                </div>
-
-                {/* Screenshot Crop Preview Card */}
-                {item.snippetUrl && (
-                  <div className="lg:col-span-5 flex flex-col items-center">
-                    <div
-                      onClick={() => onOpenCropModal(item.snippetUrl, item.pageNumber, item.answer)}
-                      className="group relative w-full overflow-hidden rounded-xl bg-slate-900 border-2 border-sky-500/40 cursor-pointer hover:border-sky-400 hover:shadow-glow-sky transition-all duration-300"
-                    >
-                      <div className="relative aspect-[4/3] w-full bg-slate-950 flex items-center justify-center">
-                        <img
-                          src={item.snippetUrl}
-                          alt="Cropped Answer Bounding Box Snippet"
-                          className="w-full h-full object-contain p-2"
-                        />
-                        <div className="absolute inset-0 bg-slate-950/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 text-xs font-bold text-sky-300 backdrop-blur-xs">
-                          <Eye className="w-4 h-4" />
-                          <span>Click to Zoom & Download</span>
-                        </div>
-                      </div>
-                      <div className="px-3 py-2 bg-slate-900/90 border-t border-slate-800 flex items-center justify-between text-[11px] text-slate-300 font-medium">
-                        <span className="flex items-center gap-1 text-sky-400 font-bold">
-                          <ImageIcon className="w-3.5 h-3.5" /> Exact Crop Snippet
+                return (
+                  <div
+                    key={ans.index}
+                    className="rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden"
+                  >
+                    {/* Answer number + page badge */}
+                    <div className="flex items-center justify-between px-4 py-2 bg-slate-50 dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800">
+                      <div className="flex items-center gap-2">
+                        <span className="w-6 h-6 rounded-full bg-sky-500 text-white text-[11px] font-black flex items-center justify-center shrink-0">
+                          {ans.index}
                         </span>
-                        <span>Page {item.pageNumber}</span>
+                        {ans.label && (
+                          <span className="text-[11px] text-slate-600 dark:text-slate-400 font-semibold">
+                            {ans.label}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {ans.page_number && (
+                          <span className="px-2.5 py-1 rounded-md bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-[11px] text-slate-800 dark:text-slate-200 font-bold flex items-center gap-1">
+                            <MapPin className="w-3 h-3 text-sky-600 dark:text-sky-400" />
+                            Page {ans.page_number}
+                          </span>
+                        )}
+                        {!isNotFound && (
+                          <span className={`px-2.5 py-1 rounded-md text-[11px] font-bold flex items-center gap-1 border ${
+                            confidencePct > 50
+                              ? 'bg-sky-500/10 border-sky-500/40 text-sky-700 dark:text-sky-300'
+                              : 'bg-amber-500/10 border-amber-500/40 text-amber-700 dark:text-amber-300'
+                          }`}>
+                            <CheckCircle className="w-3 h-3" />
+                            {confidencePct}% Match
+                          </span>
+                        )}
                       </div>
                     </div>
+
+                    {/* Answer Content */}
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 p-4 items-start">
+                      <div className={`${ans.snippetUrl ? 'lg:col-span-7' : 'lg:col-span-12'} space-y-2`}>
+                        <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800">
+                          <p className={`text-sm leading-relaxed ${
+                            isNotFound
+                              ? 'text-amber-700 dark:text-amber-400/90 font-semibold italic'
+                              : 'text-slate-900 dark:text-slate-100 font-semibold'
+                          }`}>
+                            {ans.answer}
+                          </p>
+                        </div>
+                        {ans.bounding_box && (
+                          <p className="text-[11px] text-slate-600 dark:text-slate-400 font-mono font-medium">
+                            Bounding Box [x0, y0, x1, y1]: [{ans.bounding_box.join(', ')}]
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Screenshot Crop */}
+                      {ans.snippetUrl && (
+                        <div className="lg:col-span-5 flex flex-col items-center">
+                          <div
+                            onClick={() => onOpenCropModal(ans.snippetUrl, ans.page_number, ans.answer)}
+                            className="group relative w-full overflow-hidden rounded-xl bg-slate-900 border-2 border-sky-500/40 cursor-pointer hover:border-sky-400 hover:shadow-glow-sky transition-all duration-300"
+                          >
+                            <div className="relative aspect-[4/3] w-full bg-slate-950 flex items-center justify-center">
+                              <img
+                                src={ans.snippetUrl}
+                                alt="Cropped Answer Bounding Box Snippet"
+                                className="w-full h-full object-contain p-2"
+                              />
+                              <div className="absolute inset-0 bg-slate-950/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 text-xs font-bold text-sky-300 backdrop-blur-xs">
+                                <Eye className="w-4 h-4" />
+                                <span>Click to Zoom & Download</span>
+                              </div>
+                            </div>
+                            <div className="px-3 py-2 bg-slate-900/90 border-t border-slate-800 flex items-center justify-between text-[11px] text-slate-300 font-medium">
+                              <span className="flex items-center gap-1 text-sky-400 font-bold">
+                                <ImageIcon className="w-3.5 h-3.5" /> Exact Crop Snippet
+                              </span>
+                              <span>Page {ans.page_number}</span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                )}
-              </div>
+                );
+              })}
             </div>
-          );
-        })}
+          </div>
+        ))}
       </div>
     </div>
   );
