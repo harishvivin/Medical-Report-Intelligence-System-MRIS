@@ -1,9 +1,11 @@
 import fitz  # PyMuPDF
+from PIL import Image
 
 def crop_pdf_by_normalized_box(pdf_path: str, page_number: int, box_2d: list, output_path: str) -> str:
     """
     Converts 0-1000 normalized coordinates [ymin, xmin, ymax, xmax] to actual pixels
     and crops that exact region from the PDF page using PyMuPDF at 2x resolution.
+    If the resulting crop is landscape (wider than tall), auto-rotates it to portrait.
     """
     ymin_1000, xmin_1000, ymax_1000, xmax_1000 = box_2d
 
@@ -23,6 +25,16 @@ def crop_pdf_by_normalized_box(pdf_path: str, page_number: int, box_2d: list, ou
     pix = page.get_pixmap(matrix=fitz.Matrix(2.0, 2.0), clip=crop_rect)
     pix.save(output_path)
     doc.close()
+
+    # ── Auto-rotate landscape crops to portrait ───────────────────────────────
+    img = Image.open(output_path)
+    img_w, img_h = img.size
+    if img_w > img_h:
+        # Landscape → rotate 90° counterclockwise to portrait
+        img = img.rotate(90, expand=True)
+        img.save(output_path)
+        print(f"[CROP] Rotated landscape→portrait ({img_w}x{img_h} → {img_h}x{img_w})")
+    # ─────────────────────────────────────────────────────────────────────────
 
     print(f"[CROP] Saved: {output_path}")
     return output_path
