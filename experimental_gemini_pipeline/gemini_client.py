@@ -15,9 +15,9 @@ load_dotenv(dotenv_path=_ENV_PATH, encoding="utf-8-sig", override=True)
 # Schema — each individual answer found in the document
 class GroundingBox(BaseModel):
     page_number: int = Field(description="1-based index of the PDF page containing this answer")
-    box_2d: List[int] = Field(description="[ymin, xmin, ymax, xmax] normalized strictly to 0-1000 — must cover EXACTLY the one row or line, not adjacent rows")
-    answer_text: str = Field(description="A complete, human-readable answer with field names and values. NEVER return raw codes or abbreviations alone. Instead write full context, e.g. 'Age: 65 years, Gender: Male, Status: Deceased' or 'Hemoglobin: 13.8 g/dL (Normal range: 12-17)' or 'Patient Name: Manjit Singh'.")
-    label: Optional[str] = Field(default=None, description="Who or what this result belongs to, e.g. 'Sibling 1', 'Mother', 'Patient'")
+    box_2d: List[int] = Field(description="[ymin, xmin, ymax, xmax] normalized strictly to 0-1000")
+    answer_text: str = Field(description="The exact value or text that directly answers the question (e.g. '13.8 g/dL', 'Manjit Singh', 'Normal sinus rhythm')")
+    label: Optional[str] = Field(default=None, description="Brief description of the highlighted region (e.g. 'Hemoglobin value', 'Patient Name')")
 
 # Wrapper schema — Gemini MUST return ALL matches, not just one
 class GroundingBoxList(BaseModel):
@@ -63,17 +63,12 @@ class GeminiClientManager:
         return (
             f'Look through the ENTIRE PDF document and find ALL parts that answer this question: "{user_question}". '
             f'There may be multiple answers on different pages (e.g. multiple patients, siblings, or repeated fields). '
-            f'For EACH match found, return: '
-            f'(1) page_number — the exact page. '
-            f'(2) answer_text — a COMPLETE, human-readable sentence with field names and values. '
-            f'    - NEVER return raw abbreviations or codes alone like "65, M, F". '
-            f'    - ALWAYS write full context, e.g. "Age: 65 years, Gender: Male, Status: Deceased" or "Hemoglobin: 13.8 g/dL". '
-            f'    - If the row has checkboxes, decode them: a ticked checkbox means that option is selected. '
-            f'(3) label — who or what this belongs to, e.g. "Sibling 1", "Mother", "Patient". '
-            f'(4) box_2d — [ymin, xmin, ymax, xmax] on 0-1000 scale. '
+            f'For EACH answer found, return the page number, the exact answer_text (the precise value e.g. "13.8 g/dL", "Male", "25 years"), '
+            f'a short label describing the context (e.g. "Sister 1 - Age", "Brother - Gender"), '
+            f'and the bounding box [ymin, xmin, ymax, xmax] (0-1000 scale). '
             f'BOUNDING BOX RULES: '
-            f'1. For TABLE rows: cover EXACTLY the single row with the answer. Start from the leftmost cell (row label) to the rightmost value cell. Do NOT include the row above or below. '
-            f'2. For non-table content: cover the full line or paragraph. '
+            f'1. For TABLE rows: draw the box to cover EXACTLY the single row containing the answer, from the leftmost edge of the row label to the rightmost value cell. Do NOT include the header row above or any adjacent row below. '
+            f'2. For non-table content: draw the box to cover the full line or paragraph that contains the answer. '
             f'3. Return ALL results you find, not just the first one.'
         )
 
