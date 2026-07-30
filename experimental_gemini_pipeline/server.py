@@ -150,24 +150,11 @@ async def ask_question(req: AskRequest):
 
         if box_2d and len(box_2d) == 4:
             try:
-                import fitz
-                doc = fitz.open(pdf_path)
-                page_idx = min(page_number - 1, len(doc) - 1)
-                page = doc[page_idx]
-                w, h = page.rect.width, page.rect.height
-                doc.close()
-
-                ymin, xmin, ymax, xmax = [float(v) for v in box_2d]
-                pt_bbox = [
-                    round((xmin / 1000.0) * w, 2),
-                    round((ymin / 1000.0) * h, 2),
-                    round((xmax / 1000.0) * w, 2),
-                    round((ymax / 1000.0) * h, 2),
-                ]
-
                 crop_filename = f"{req.document_id}_p{page_number}_r{idx}_{uuid.uuid4().hex[:6]}.png"
                 crop_path = str(CROPS_DIR / crop_filename)
-                crop_pdf_by_normalized_box(pdf_path, page_number, box_2d, crop_path)
+                refined_box_2d, pt_bbox = crop_pdf_by_normalized_box(
+                    pdf_path, page_number, box_2d, crop_path, answer_text=answer_text, label=label
+                )
                 snippet_url = f"/api/crops/{crop_filename}"
             except Exception as e:
                 print(f"[CROP ERROR] result {idx}: {e}")

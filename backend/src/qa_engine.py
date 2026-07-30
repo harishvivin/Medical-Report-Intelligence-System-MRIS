@@ -213,8 +213,21 @@ class QAEngine:
                     matched_line = gemini_res.get("matched_line") or gemini_res.get("matched_text")
                     page_num = gemini_res.get("page")
 
-                    # Map Gemini matched_line or answer back to physical PyMuPDF parent_row_bbox
-                    target_page, page_idx, bbox = self._find_bbox_for_matched_line(matched_line, page_num, gemini_res.get("answer"))
+                    gemini_ycenter = None
+                    if all(gemini_res.get(k) is not None for k in ["ymin", "ymax"]) and (target_page or page_num):
+                        try:
+                            doc = fitz.open(self.pdf_path)
+                            p_idx = (target_page or page_num) - 1
+                            if 0 <= p_idx < len(doc):
+                                h = doc[p_idx].rect.height
+                                g_ymin = (gemini_res["ymin"] / 1000.0) * h
+                                g_ymax = (gemini_res["ymax"] / 1000.0) * h
+                                gemini_ycenter = (g_ymin + g_ymax) / 2.0
+                            doc.close()
+                        except Exception:
+                            pass
+
+                    target_page, page_idx, bbox = self._find_bbox_for_matched_line(matched_line, page_num, gemini_res.get("answer"), gemini_ycenter=gemini_ycenter)
 
                     # If Gemini provided normalized 0-1000 spatial coordinates, compute gemini_bbox
                     gemini_bbox = None
@@ -317,7 +330,7 @@ class QAEngine:
         return images
 
     def _find_bbox_for_matched_line(
-        self, matched_line: Optional[str], target_page: Optional[int], answer_text: Optional[str] = None
+        self, matched_line: Optional[str], target_page: Optional[int], answer_text: Optional[str] = None, gemini_ycenter: Optional[float] = None
     ) -> Tuple[Optional[int], Optional[int], Optional[List[float]]]:
         """Locates the exact PyMuPDF parent_row_bbox corresponding to Gemini's matched_line or answer_text."""
         query_text = (matched_line or "").strip() or (answer_text or "").strip()
@@ -340,27 +353,46 @@ class QAEngine:
                 pages_to_check.append(p)
 
         for p in pages_to_check:
-            # Prioritize 'row' entries so parent_row_bbox spans full width across columns
             p_blocks = [b for b in self.index.blocks if b["page_number"] == p]
             p_blocks.sort(key=lambda b: 0 if b.get("type") == "row" else 1)
             
+            # Helper to pick best block among candidates based on ycenter proximity if gemini_ycenter provided
+            def pick_best(candidates: List[Dict[str, Any]]) -> Dict[str, Any]:
+                if not candidates:
+                    return None
+                if gemini_ycenter is not None:
+                    def get_ycenter(b):
+                        bbox = b.get("parent_row_bbox") or b["bounding_box"]
+                        return (bbox[1] + bbox[3]) / 2.0
+                    return min(candidates, key=lambda b: abs(get_ycenter(b) - gemini_ycenter))
+                return candidates[0]
+
             # 1. Exact string match (case-sensitive)
+            exact_matches = []
             for block in p_blocks:
                 txt = block.get("text", "").strip()
                 row_txt = (block.get("full_row_text") or "").strip()
                 if clean_line == txt or clean_line == row_txt:
-                    bbox = block.get("parent_row_bbox") or block["bounding_box"]
-                    return block["page_number"], block["page_index"], bbox
+                    exact_matches.append(block)
+            best = pick_best(exact_matches)
+            if best:
+                bbox = best.get("parent_row_bbox") or best["bounding_box"]
+                return best["page_number"], best["page_index"], bbox
 
             # 2. Case-insensitive exact match
+            case_matches = []
             for block in p_blocks:
                 txt = block.get("text", "").strip().lower()
                 row_txt = (block.get("full_row_text") or "").strip().lower()
                 if norm_line == txt or norm_line == row_txt:
-                    bbox = block.get("parent_row_bbox") or block["bounding_box"]
-                    return block["page_number"], block["page_index"], bbox
+                    case_matches.append(block)
+            best = pick_best(case_matches)
+            if best:
+                bbox = best.get("parent_row_bbox") or best["bounding_box"]
+                return best["page_number"], best["page_index"], bbox
 
             # 3. Normalized whitespace & colon match
+            norm_matches = []
             for block in p_blocks:
                 txt = re.sub(r'\s+', ' ', block.get("text", "").strip().lower())
                 row_txt = re.sub(r'\s+', ' ', (block.get("full_row_text") or "").strip().lower())
@@ -368,10 +400,14 @@ class QAEngine:
                 row_colon = re.sub(r'\s*:\s*', ' : ', row_txt)
 
                 if norm_line_spaces in (txt, row_txt) or norm_colon in (txt_colon, row_colon):
-                    bbox = block.get("parent_row_bbox") or block["bounding_box"]
-                    return block["page_number"], block["page_index"], bbox
+                    norm_matches.append(block)
+            best = pick_best(norm_matches)
+            if best:
+                bbox = best.get("parent_row_bbox") or best["bounding_box"]
+                return best["page_number"], best["page_index"], bbox
 
             # 4. Exact Substring match (matched_line inside row text or row text inside matched_line)
+            sub_matches = []
             for block in p_blocks:
                 txt = re.sub(r'\s+', ' ', block.get("text", "").strip().lower())
                 row_txt = re.sub(r'\s+', ' ', (block.get("full_row_text") or "").strip().lower())
@@ -379,23 +415,29 @@ class QAEngine:
                 row_colon = re.sub(r'\s*:\s*', ' : ', row_txt)
 
                 if (txt and (norm_colon in txt_colon or txt_colon in norm_colon)) or (row_txt and (norm_colon in row_colon or row_colon in norm_colon)):
-                    bbox = block.get("parent_row_bbox") or block["bounding_box"]
-                    return block["page_number"], block["page_index"], bbox
+                    sub_matches.append(block)
+            best = pick_best(sub_matches)
+            if best:
+                bbox = best.get("parent_row_bbox") or best["bounding_box"]
+                return best["page_number"], best["page_index"], bbox
 
             # 5. Token overlap fallback on page
             tokens = [w for w in re.findall(r'\b[\w\.-]+\b', norm_line) if len(w) > 1 and w not in ["the", "and", "for", "with", "range", "reference"]]
             if tokens:
-                best_b = None
+                token_candidates = []
                 best_cnt = 0
                 for block in p_blocks:
                     row_txt = (block.get("full_row_text") or block.get("text", "")).lower()
                     cnt = sum(1 for tok in tokens if tok in row_txt)
                     if cnt > best_cnt:
                         best_cnt = cnt
-                        best_b = block
-                if best_b and best_cnt >= 1:
-                    bbox = best_b.get("parent_row_bbox") or best_b["bounding_box"]
-                    return best_b["page_number"], best_b["page_index"], bbox
+                        token_candidates = [block]
+                    elif cnt == best_cnt and cnt >= 1:
+                        token_candidates.append(block)
+                best = pick_best(token_candidates)
+                if best:
+                    bbox = best.get("parent_row_bbox") or best["bounding_box"]
+                    return best["page_number"], best["page_index"], bbox
 
         if target_page:
             t_blocks = [b for b in self.index.blocks if b["page_number"] == target_page]
