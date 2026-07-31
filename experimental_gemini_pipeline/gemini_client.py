@@ -234,6 +234,9 @@ def locate_answer_in_pdf(pdf_path: str, question: str) -> dict:
                 # Exclude non-sibling family members (mother, father, parent, spouse, husband, wife)
                 if any(non_sib in lbl or non_sib in ans_lower for non_sib in ["mother", "father", "parent", "spouse", "husband", "wife"]):
                     continue
+                # Exclude Sibling 3 entries unless Sibling 3 is explicitly requested
+                if target_sibling_num != 3 and any(s3 in lbl or s3 in ans_lower for s3 in ["sibling 3", "sibling3", "3rd sibling", "third sibling"]):
+                    continue
 
             results.append({
                 "page_number": gb.page_number,
@@ -274,7 +277,7 @@ def locate_answer_in_pdf(pdf_path: str, question: str) -> dict:
                     return {
                         "found": False,
                         "results": [],
-                        "answer": f"The uploaded report does not contain information for Sibling {target_sibling_num}.",
+                        "answer": "The uploaded report does not contain this information.",
                         "error": f"Sibling {target_sibling_num} does not exist in the report."
                     }
             else:

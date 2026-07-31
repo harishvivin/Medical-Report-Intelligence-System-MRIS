@@ -525,10 +525,17 @@ class QAEngine:
 
         # 3b. Sibling Specific Direct Lookup
         if is_asking_siblings:
+            target_num_match = re.search(r'sibling\s*(\d+)|(\d+)(?:st|nd|rd|th)?\s*sibling', norm_q)
+            target_is_3 = target_num_match and int(target_num_match.group(1) or target_num_match.group(2)) == 3
             for block in self.index.blocks:
                 txt_lower = block["text"].lower()
                 if any(w in txt_lower for w in ["sibling", "brother", "sister"]):
-                    lines = [l.strip() for l in block["text"].split("\n") if any(w in l.lower() for w in ["sibling", "brother", "sister"]) and not any(non_s in l.lower() for non_s in ["mother", "father", "parent", "spouse"])]
+                    lines = [
+                        l.strip() for l in block["text"].split("\n")
+                        if any(w in l.lower() for w in ["sibling", "brother", "sister"])
+                        and not any(non_s in l.lower() for non_s in ["mother", "father", "parent", "spouse"])
+                        and (target_is_3 or not any(s3 in l.lower() for s3 in ["sibling 3", "sibling3", "3rd sibling", "third sibling"]))
+                    ]
                     if lines:
                         return {
                             "answer": "\n".join(lines),

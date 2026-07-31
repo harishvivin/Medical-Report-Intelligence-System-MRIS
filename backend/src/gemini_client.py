@@ -148,13 +148,24 @@ class GeminiClient:
                 matched_line = parsed.get("matched_line") or parsed.get("matched_text")
                 ans_str = str(parsed.get("answer", "")).strip()
 
-                # Filter out mother/father/parent lines if user asked about siblings
+                # Filter out mother/father/parent lines and Sibling 3 (unless Sibling 3 is explicitly requested) if user asked about siblings
                 if any(w in (question or "").lower() for w in ["sibling", "siblings", "brother", "sister"]):
-                    if ans_str and any(non_sib in ans_str.lower() for non_sib in ["mother", "father", "parent", "spouse"]):
-                        lines = [l for l in ans_str.split("\n") if not any(non_sib in l.lower() for non_sib in ["mother", "father", "parent", "spouse"])]
+                    target_num_match = re.search(r'sibling\s*(\d+)|(\d+)(?:st|nd|rd|th)?\s*sibling', (question or "").lower())
+                    target_is_3 = target_num_match and int(target_num_match.group(1) or target_num_match.group(2)) == 3
+                    
+                    if ans_str:
+                        lines = [
+                            l for l in ans_str.split("\n")
+                            if not any(non_sib in l.lower() for non_sib in ["mother", "father", "parent", "spouse"])
+                            and (target_is_3 or not any(s3 in l.lower() for s3 in ["sibling 3", "sibling3", "3rd sibling", "third sibling"]))
+                        ]
                         ans_str = "\n".join(lines).strip()
-                    if matched_line and any(non_sib in str(matched_line).lower() for non_sib in ["mother", "father", "parent", "spouse"]):
-                        m_lines = [l for l in str(matched_line).split("\n") if not any(non_sib in l.lower() for non_sib in ["mother", "father", "parent", "spouse"])]
+                    if matched_line:
+                        m_lines = [
+                            l for l in str(matched_line).split("\n")
+                            if not any(non_sib in l.lower() for non_sib in ["mother", "father", "parent", "spouse"])
+                            and (target_is_3 or not any(s3 in l.lower() for s3 in ["sibling 3", "sibling3", "3rd sibling", "third sibling"]))
+                        ]
                         matched_line = "\n".join(m_lines).strip() if m_lines else None
 
                 return {
