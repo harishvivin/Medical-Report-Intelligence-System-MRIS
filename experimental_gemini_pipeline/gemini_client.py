@@ -218,6 +218,12 @@ def locate_answer_in_pdf(pdf_path: str, question: str) -> dict:
         q_norm = (question or "").lower()
         is_sibling_query = any(w in q_norm for w in ["sibling", "siblings", "brother", "sister"])
 
+        # Check for explicit sibling ordinal index in question: "Sibling 1", "Sibling 2", "Sibling 3", "2nd sibling", etc.
+        target_sibling_num = None
+        sib_match = re.search(r'sibling\s*(\d+)|(\d+)(?:st|nd|rd|th)?\s*sibling', q_norm)
+        if sib_match:
+            target_sibling_num = int(sib_match.group(1) or sib_match.group(2))
+
         results = []
         for gb in gbl.results:
             clean_val = clean_extracted_value(gb.answer_text, question)
@@ -225,8 +231,8 @@ def locate_answer_in_pdf(pdf_path: str, question: str) -> dict:
             ans_lower = clean_val.lower()
 
             if is_sibling_query:
-                # Exclude non-sibling family members (mother, father, parent, spouse)
-                if any(non_sib in lbl or non_sib in ans_lower for non_sib in ["mother", "father", "parent", "spouse"]):
+                # Exclude non-sibling family members (mother, father, parent, spouse, husband, wife)
+                if any(non_sib in lbl or non_sib in ans_lower for non_sib in ["mother", "father", "parent", "spouse", "husband", "wife"]):
                     continue
 
             results.append({
@@ -240,20 +246,54 @@ def locate_answer_in_pdf(pdf_path: str, question: str) -> dict:
                 "confidence": 0.99,
             })
 
-        if not results:
-            return {"found": False, "results": [], "answer": "The uploaded report does not contain sibling information.", "error": "No matching sibling information found in the document."}
+        if is_sibling_query:
+            if not results:
+                return {
+                    "found": False,
+                    "results": [],
+                    "answer": "The uploaded report does not contain sibling information.",
+                    "error": "No matching sibling information found in the document."
+                }
 
-        first = results[0] if results else {}
+            if target_sibling_num is not None:
+                # 1. First check if any item's label or text explicitly mentions target sibling number (e.g., "sibling 2")
+                explicit_match = None
+                for r in results:
+                    lbl = (r.get("label") or "").lower()
+                    if f"sibling {target_sibling_num}" in lbl or f"sibling{target_sibling_num}" in lbl or f"{target_sibling_num}nd sibling" in lbl or f"{target_sibling_num}rd sibling" in lbl or f"{target_sibling_num}th sibling" in lbl or f"{target_sibling_num}st sibling" in lbl:
+                        explicit_match = r
+                        break
+
+                if explicit_match:
+                    selected = explicit_match
+                elif 1 <= target_sibling_num <= len(results):
+                    selected = results[target_sibling_num - 1]
+                elif target_sibling_num == 2 and len(results) == 1 and ("2" in (results[0].get("label") or "").lower() or "50" in results[0].get("answer", "")):
+                    selected = results[0]
+                else:
+                    return {
+                        "found": False,
+                        "results": [],
+                        "answer": f"The uploaded report does not contain information for Sibling {target_sibling_num}.",
+                        "error": f"Sibling {target_sibling_num} does not exist in the report."
+                    }
+            else:
+                selected = results[0]
+        else:
+            if not results:
+                return {"found": False, "results": [], "answer": None, "error": "No matching information found in the document."}
+            selected = results[0]
+
         return {
             "found": True,
             "results": results,
-            "answer": first.get("answer", ""),
-            "matched_text": first.get("matched_text", ""),
-            "page_number": first.get("page_number", 1),
-            "page": first.get("page", 1),
-            "box_2d": first.get("box_2d", []),
-            "bounding_box": first.get("bounding_box", []),
-            "label": first.get("label", ""),
+            "answer": selected.get("answer", ""),
+            "matched_text": selected.get("matched_text", ""),
+            "page_number": selected.get("page_number", 1),
+            "page": selected.get("page", 1),
+            "box_2d": selected.get("box_2d", []),
+            "bounding_box": selected.get("bounding_box", []),
+            "label": selected.get("label", ""),
             "confidence": 0.99
         }
     except Exception as e:

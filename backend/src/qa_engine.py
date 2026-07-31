@@ -170,11 +170,11 @@ class QAEngine:
                     }
                     logger.info(f"Experimental Gemini Pipeline answered question successfully with confidence {matched_data['confidence']}")
                     return self._build_response(question, matched_data)
-                elif exp_res and exp_res.get("found") is False and "error" not in exp_res:
+                elif exp_res and exp_res.get("found") is False:
                     logger.info("Experimental Gemini Pipeline determined info is NOT in report.")
                     return {
                         "question": question,
-                        "answer": NOT_FOUND_MESSAGE,
+                        "answer": exp_res.get("answer") or NOT_FOUND_MESSAGE,
                         "page_number": None,
                         "confidence": 0.0,
                         "snippet_url": None,
