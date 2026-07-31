@@ -45,25 +45,20 @@ class ScreenshotCropper:
         px1 = x1 * scale
         py1 = y1 * scale
 
-        # Add context padding around target box (e.g., 40px horizontal, 30px vertical)
+        # Add context padding around target box (extend horizontally, keep vertical tight)
         padding_x = 50 * scale
-        padding_y = 35 * scale
+        padding_y = 2 * scale
 
         crop_x0 = max(0, px0 - padding_x)
         crop_y0 = max(0, py0 - padding_y)
         crop_x1 = min(img.width, px1 + padding_x)
         crop_y1 = min(img.height, py1 + padding_y)
 
-        # Ensure minimum crop dimension for readability
+        # Ensure minimum horizontal crop width for full row readability
         if (crop_x1 - crop_x0) < 300:
             margin = (300 - (crop_x1 - crop_x0)) / 2
             crop_x0 = max(0, crop_x0 - margin)
             crop_x1 = min(img.width, crop_x1 + margin)
-
-        if (crop_y1 - crop_y0) < 120:
-            margin = (120 - (crop_y1 - crop_y0)) / 2
-            crop_y0 = max(0, crop_y0 - margin)
-            crop_y1 = min(img.height, crop_y1 + margin)
 
         cropped_img = img.crop((crop_x0, crop_y0, crop_x1, crop_y1)).convert("RGBA")
 
