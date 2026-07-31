@@ -32,22 +32,35 @@ def refine_box_with_pymupdf(
         ]
         return box_2d, pt_bbox
 
-    # Group words into line objects
-    lines_dict = {}
-    for x0, y0, x1, y1, word, block_no, line_no, _ in words:
-        key = (block_no, line_no)
-        lines_dict.setdefault(key, []).append((x0, y0, x1, y1, word))
+    # Group words across table columns into unified horizontal rows if ycenter is within 4 points
+    rows = []
+    for w_item in words:
+        x0, y0, x1, y1, word = w_item[:5]
+        yc = (y0 + y1) / 2.0
+        matched = False
+        for r in rows:
+            if abs(r['ycenter'] - yc) <= 4.0:
+                r['words'].append((x0, y0, x1, y1, word))
+                r['y0'] = min(r['y0'], y0)
+                r['y1'] = max(r['y1'], y1)
+                r['x0'] = min(r['x0'], x0)
+                r['x1'] = max(r['x1'], x1)
+                r['ycenter'] = (r['y0'] + r['y1']) / 2.0
+                matched = True
+                break
+        if not matched:
+            rows.append({
+                'x0': x0, 'y0': y0, 'x1': x1, 'y1': y1,
+                'ycenter': yc, 'words': [(x0, y0, x1, y1, word)]
+            })
 
     lines = []
-    for key, l_words in lines_dict.items():
-        lx0 = min(w[0] for w in l_words)
-        ly0 = min(w[1] for w in l_words)
-        lx1 = max(w[2] for w in l_words)
-        ly1 = max(w[3] for w in l_words)
-        ltext = " ".join(w[4] for w in l_words)
+    for r in rows:
+        r['words'].sort(key=lambda item: item[0])  # sort words by x0 coordinate
+        ltext = " ".join(w[4] for w in r['words'])
         lines.append({
-            "x0": lx0, "y0": ly0, "x1": lx1, "y1": ly1,
-            "text": ltext, "ycenter": (ly0 + ly1) / 2.0
+            "x0": r['x0'], "y0": r['y0'], "x1": r['x1'], "y1": r['y1'],
+            "text": ltext, "ycenter": r['ycenter']
         })
 
     target_ans = (answer_text or "").strip().lower()
@@ -97,8 +110,8 @@ def refine_box_with_pymupdf(
 
     # If matching line found within 120pt (~15% page height) of Gemini center
     if best_line and min_dist < 120.0:
-        new_ymin = max(0.0, best_line["y0"] - 2.0)
-        new_ymax = min(h, best_line["y1"] + 2.0)
+        new_ymin = max(0.0, best_line["y0"] - 0.5)
+        new_ymax = min(h, best_line["y1"] + 0.5)
 
         # Extend x-bounds slightly if line spans across row
         new_xmin = min((xmin_1000 / 1000.0) * w, best_line["x0"])
@@ -156,10 +169,10 @@ def crop_pdf_by_normalized_box(
 
     # ── Precision Row Padding ──────────────────────────────────────────────────
     # Horizontal (X): Extend 25% of page width left & right to capture full row context.
-    # Vertical (Y): 6pt top padding / 4pt bottom padding for clean row crop.
+    # Vertical (Y): 0.5pt top padding / 0.5pt bottom padding prevents bleeding into adjacent rows.
     pad_x = 0.25 * w
-    pad_y_top = 6.0
-    pad_y_bottom = 4.0
+    pad_y_top = 0.5
+    pad_y_bottom = 0.5
 
     left   = max(0.0, xmin_px - pad_x)
     right  = min(w,   xmax_px + pad_x)
