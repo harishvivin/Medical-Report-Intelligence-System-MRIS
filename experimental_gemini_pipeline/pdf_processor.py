@@ -67,6 +67,43 @@ def refine_box_with_pymupdf(
     clean_num = "".join(c for c in target_ans if c.isdigit())
     target_lbl = (label or "").strip().lower()
 
+    # ── Multi-line aware refinement ─────────────────────────────────────────
+    # Gemini's y-range may span multiple text rows (e.g. a wrapped form question).
+    # Collect ALL text rows that overlap with Gemini's y-range so we don't
+    # collapse a multi-line region down to a single line.
+    gemini_height = g_ymax - g_ymin
+    MULTILINE_THRESHOLD = 20.0  # >20pt suggests content spans multiple lines
+
+    # Collect rows overlapping the Gemini y-range (with a small tolerance)
+    overlap_tolerance = 6.0
+    overlapping_rows = []
+    for line in lines:
+        # A row overlaps if its y-range intersects Gemini's y-range
+        if line["y1"] >= (g_ymin - overlap_tolerance) and line["y0"] <= (g_ymax + overlap_tolerance):
+            overlapping_rows.append(line)
+
+    # If Gemini box spans multiple lines and we have overlapping rows, use them all
+    if gemini_height > MULTILINE_THRESHOLD and len(overlapping_rows) >= 2:
+        new_ymin = min(r["y0"] for r in overlapping_rows)
+        new_ymax = max(r["y1"] for r in overlapping_rows)
+        new_xmin = min(min(r["x0"] for r in overlapping_rows), (xmin_1000 / 1000.0) * w)
+        new_xmax = max(max(r["x1"] for r in overlapping_rows), (xmax_1000 / 1000.0) * w)
+
+        # Apply comfortable padding for multi-line crops
+        pad = 4.0
+        new_ymin = max(0.0, new_ymin - pad)
+        new_ymax = min(h, new_ymax + pad)
+
+        ref_ymin_1000 = int(round((new_ymin / h) * 1000.0))
+        ref_ymax_1000 = int(round((new_ymax / h) * 1000.0))
+        ref_xmin_1000 = int(round((new_xmin / w) * 1000.0))
+        ref_xmax_1000 = int(round((new_xmax / w) * 1000.0))
+
+        ref_box_2d = [ref_ymin_1000, ref_xmin_1000, ref_ymax_1000, ref_xmax_1000]
+        pt_bbox = [round(new_xmin, 2), round(new_ymin, 2), round(new_xmax, 2), round(new_ymax, 2)]
+        return ref_box_2d, pt_bbox
+
+    # ── Single-line refinement (original logic) ─────────────────────────────
     best_line = None
     min_dist = float("inf")
 
@@ -110,8 +147,9 @@ def refine_box_with_pymupdf(
 
     # If matching line found within 120pt (~15% page height) of Gemini center
     if best_line and min_dist < 120.0:
-        new_ymin = max(0.0, best_line["y0"] - 0.5)
-        new_ymax = min(h, best_line["y1"] + 0.5)
+        pad = 4.0
+        new_ymin = max(0.0, best_line["y0"] - pad)
+        new_ymax = min(h, best_line["y1"] + pad)
 
         # Extend x-bounds slightly if line spans across row
         new_xmin = min((xmin_1000 / 1000.0) * w, best_line["x0"])
@@ -169,10 +207,11 @@ def crop_pdf_by_normalized_box(
 
     # ── Precision Row Padding ──────────────────────────────────────────────────
     # Horizontal (X): Extend 25% of page width left & right to capture full row context.
-    # Vertical (Y): 0.5pt top padding / 0.5pt bottom padding prevents bleeding into adjacent rows.
+    # Vertical (Y): 4pt top/bottom padding for comfortable readability without
+    #               bleeding excessively into adjacent rows.
     pad_x = 0.25 * w
-    pad_y_top = 0.5
-    pad_y_bottom = 0.5
+    pad_y_top = 4.0
+    pad_y_bottom = 4.0
 
     left   = max(0.0, xmin_px - pad_x)
     right  = min(w,   xmax_px + pad_x)

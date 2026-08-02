@@ -189,12 +189,15 @@ class GeminiClientManager:
         try:
             # Call Gemini with structured output — returns a LIST of results
             response = client.models.generate_content(
-                model="gemini-3.1-flash-lite",
+                model="gemini-3.5-flash",
                 contents=[uploaded_file, prompt],
                 config=types.GenerateContentConfig(
                     response_mime_type="application/json",
                     response_schema=GroundingBoxList,
-                    temperature=0.0
+                    temperature=0.0,
+                    thinking_config=types.ThinkingConfig(
+                        thinking_level = 'minimal'
+                    )
                 )
             )
 
